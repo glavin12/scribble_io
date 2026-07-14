@@ -57,8 +57,11 @@ export default function Canvas({ isDrawer, onDraw, onClear, remoteStrokes }) {
         lastPt.current = null
       } else if (s.type === 'begin') {
         lastPt.current = { x: s.x, y: s.y, color: s.color, size: s.size }
+      } else if (s.type === 'move' && !lastPt.current) {
+        // Dropped begin — recover by treating first move as a begin point
+        lastPt.current = { x: s.x, y: s.y, color: s.color || '#000000', size: s.size || 6 }
       } else if (s.type === 'move' && lastPt.current) {
-        drawLine(ctx, lastPt.current.x, lastPt.current.y, s.x, s.y, lastPt.current.color, lastPt.current.size)
+        drawLine(ctx, lastPt.current.x, lastPt.current.y, s.x, s.y, s.color || lastPt.current.color, s.size || lastPt.current.size)
         lastPt.current = { ...lastPt.current, x: s.x, y: s.y }
       }
     }
@@ -91,7 +94,7 @@ export default function Canvas({ isDrawer, onDraw, onClear, remoteStrokes }) {
     const { x, y } = pt(e)
     const ctx = canvasRef.current.getContext('2d')
     drawLine(ctx, lastPt.current.x, lastPt.current.y, x, y, lastPt.current.color, lastPt.current.size)
-    onDraw({ type: 'move', x, y })
+    onDraw({ type: 'move', x, y, color: colorRef.current, size: sizeRef.current })
     lastPt.current = { ...lastPt.current, x, y }
   }, [isDrawer, onDraw])
 

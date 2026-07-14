@@ -24,10 +24,10 @@ async function apiJson(path, body, token) {
 }
 
 // ── Module-level components ──────────────────────────────────────────────────
-// IMPORTANT: these must be defined OUTSIDE App() so React sees a stable
-// component type on every render. Defining components inside a parent function
-// causes React to unmount+remount them on every parent re-render, which resets
-// their internal state (bug: guess input going blank, canvas clearing).
+// IMPORTANT: ALL screen components must be defined OUTSIDE App() so React sees
+// a stable component type on every render. Defining components inside a parent
+// function causes React to unmount+remount them on every parent re-render,
+// which resets their internal state (bug: canvas clearing, guess input blanking).
 
 function ScoresTable({ scores, me }) {
   const sorted = Object.entries(scores || {}).sort((a, b) => b[1] - a[1])
@@ -102,6 +102,229 @@ function MainGameLayout({
   )
 }
 
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
+function AuthScreen({ error, setError, setToken, setUsername, setScreen, pushEvent }) {
+  const [mode, setMode] = useState('login')
+  const [form, setForm] = useState({ username: '', password: '', email: '' })
+  const [busy, setBusy] = useState(false)
+
+  const submit = async (e) => {
+    e.preventDefault(); setBusy(true); setError('')
+    try {
+      if (mode === 'login') {
+        const d = await apiPost('/auth/login', { username: form.username, password: form.password })
+        localStorage.setItem('token', d.access_token)
+        localStorage.setItem('username', form.username)
+        setToken(d.access_token); setUsername(form.username); setScreen('lobby')
+      } else {
+        await apiJson('/auth/register', form)
+        setMode('login')
+        setError('')
+        pushEvent('Registered! Please log in.', 'system')
+      }
+    } catch (err) { setError(err.message) }
+    finally { setBusy(false) }
+  }
+
+  return (
+    <div className="center fade">
+      <div className="card">
+        <h1>🎨 Scribble.io</h1>
+        <p className="sub">{mode === 'login' ? 'Log in to play' : 'Create an account'}</p>
+        {error && <div className="error-box">{error}</div>}
+        <form onSubmit={submit}>
+          <div className="field"><label>Username</label>
+            <input value={form.username} onChange={e => setForm(f => ({...f, username: e.target.value}))} required />
+          </div>
+          {mode === 'register' && (
+            <div className="field"><label>Email</label>
+              <input type="email" value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} required />
+            </div>
+          )}
+          <div className="field"><label>Password</label>
+            <input type="password" value={form.password} onChange={e => setForm(f => ({...f, password: e.target.value}))} required />
+          </div>
+          <button className="btn btn-primary" disabled={busy}>{busy ? '…' : mode === 'login' ? 'Log In' : 'Register'}</button>
+        </form>
+        <p style={{textAlign:'center', marginTop:'1rem', fontSize:'.9rem', color:'var(--muted)'}}>
+          {mode === 'login' ? 'No account? ' : 'Have an account? '}
+          <button className="btn btn-sm btn-outline" style={{marginLeft:'.4rem'}} onClick={() => { setMode(m => m==='login'?'register':'login'); setError('') }}>
+            {mode === 'login' ? 'Register' : 'Log In'}
+          </button>
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// ── Lobby ─────────────────────────────────────────────────────────────────────
+
+function LobbyScreen({ error, setError, username, send, setToken, setUsername, setScreen }) {
+  const [joinId, setJoinId] = useState('')
+
+  const logout = () => {
+    localStorage.clear(); setToken(''); setUsername(''); setScreen('auth')
+  }
+
+  return (
+    <div className="center fade">
+      <div className="card">
+        <h1>🎨 Scribble.io</h1>
+        <p className="sub">Welcome, <strong>{username}</strong></p>
+        {error && <div className="error-box">{error}</div>}
+        <div className="lobby-actions">
+          <button className="btn btn-primary" onClick={() => { setError(''); send('create_room') }}>
+            Create Room
+          </button>
+          <div style={{display:'flex', gap:'.5rem'}}>
+            <input
+              placeholder="Room code"
+              value={joinId}
+              onChange={e => setJoinId(e.target.value.toUpperCase())}
+              style={{flex:1, textTransform:'uppercase', letterSpacing:'.1em'}}
+              maxLength={8}
+            />
+            <button className="btn btn-outline" onClick={() => { setError(''); send('join_room', { room_id: joinId }) }}>
+              Join
+            </button>
+          </div>
+          <button className="btn btn-sm" style={{background:'none', color:'var(--muted)', marginTop:'.5rem'}} onClick={logout}>
+            Log out
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Room (lobby waiting screen) ──────────────────────────────────────────────
+
+function RoomScreen({ room, error, isCreator, send, setRoom, setScreen }) {
+  const ready = room?.status === 'ready'
+  return (
+    <div className="center fade">
+      <div className="card">
+        <h1>Room</h1>
+        <p className="sub">Share this code with a friend</p>
+        <div className="room-id-badge">{room?.room_id}</div>
+        {error && <div className="error-box">{error}</div>}
+        <ul className="player-list">
+          {room?.players?.map(p => (
+            <li key={p}>
+              <span className={`status-dot ${ready ? 'dot-green' : 'dot-yellow'}`} />
+              {p} {p === room.creator_id && '👑'}
+            </li>
+          ))}
+        </ul>
+        {!ready && <p style={{color:'var(--muted)', textAlign:'center', fontSize:'.9rem'}}>Waiting for opponent…</p>}
+        {ready && isCreator && (
+          <button className="btn btn-success" onClick={() => send('start_game')}>
+            Start Game 🎮
+          </button>
+        )}
+        {ready && !isCreator && (
+          <p style={{color:'var(--green)', textAlign:'center', fontWeight:700}}>Ready! Waiting for host…</p>
+        )}
+        <button className="btn btn-sm btn-outline" style={{marginTop:'1rem'}} onClick={() => { setRoom(null); setScreen('lobby') }}>
+          Leave Room
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Game screen ──────────────────────────────────────────────────────────────
+
+function GameScreen({
+  drawerID, username, send, guess, setGuess,
+  remoteStrokes, scores, word, wordLength,
+  gamePhase, roundNum, totalRounds, timer, events,
+  candidates, setCandidates,
+}) {
+  // guess is lifted to App() — defined alongside other game state above.
+  const isDrawer = drawerID === username
+
+  // Stable callbacks — send is already stable (useCallback([]))
+  const sendDraw  = useCallback((stroke) => send('draw', { stroke }), [send])
+  const sendClear = useCallback(() => send('clear_canvas'), [send])
+
+  const submitGuess = (e) => {
+    e.preventDefault()
+    if (!guess.trim()) return
+    send('guess', { guess: guess.trim() })
+    setGuess('')
+  }
+
+  const timerLow = timer !== null && timer <= 15
+
+  const layout = (
+    <MainGameLayout
+      isDrawer={isDrawer} sendDraw={sendDraw} sendClear={sendClear}
+      guess={guess} setGuess={setGuess} submitGuess={submitGuess}
+      timerLow={timerLow}
+      remoteStrokes={remoteStrokes} scores={scores} username={username}
+      drawerID={drawerID} word={word} wordLength={wordLength}
+      gamePhase={gamePhase} roundNum={roundNum} totalRounds={totalRounds}
+      timer={timer} events={events}
+      onSkip={() => send('skip')}
+      onChooseWord={(w) => { send('choose_word', { word: w }); setCandidates([]) }}
+    />
+  )
+
+  return (
+    <>
+      {layout}
+      {gamePhase === 'choosing' && isDrawer && candidates.length > 0 && (
+        <div className="overlay">
+          <div className="choice-card fade">
+            <h2>Choose a word</h2>
+            <p className="sub">Pick one to draw. You have {timer}s.</p>
+            <div className="word-choices">
+              {candidates.map(w => (
+                <button key={w} className="word-choice-btn"
+                  onClick={() => { send('choose_word', { word: w }); setCandidates([]) }}>
+                  {w}
+                </button>
+              ))}
+            </div>
+            <div className="choice-timer">{timer}</div>
+          </div>
+        </div>
+      )}
+      {gamePhase === 'round_end' && (
+        <div className="overlay">
+          <div className="choice-card fade">
+            <h2>Round {roundNum} over!</h2>
+            <p className="sub">The word was: <strong style={{color:'var(--accent)'}}>{word}</strong></p>
+            <ScoresTable scores={scores} me={username} />
+            <p style={{color:'var(--muted)', marginTop:'1rem', fontSize:'.9rem'}}>Next round starting…</p>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+// ── Game over ────────────────────────────────────────────────────────────────
+
+function GameOverScreen({ finalResult, error, username, setFinalResult, setScreen, setRoom }) {
+  const { scores: s, winner } = finalResult || {}
+  return (
+    <div className="center fade">
+      <div className="card result-card">
+        <h1>🏆 Game Over</h1>
+        <div className="winner">{winner ? `${winner} wins!` : 'Draw!'}</div>
+        {error && <div className="error-box">{error}</div>}
+        <ScoresTable scores={s || {}} me={username} />
+        <button className="btn btn-primary" style={{marginTop:'1rem'}} onClick={() => { setFinalResult(null); setScreen('lobby'); setRoom(null) }}>
+          Play Again
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── App ──────────────────────────────────────────────────────────────────────
 
 
@@ -138,8 +361,9 @@ export default function App() {
   // WebSocket
   const wsRef = useRef(null)
 
-  const pushEvent = (msg, cls = '') =>
-    setEvents(ev => [...ev.slice(-49), { msg, cls, id: Date.now() + Math.random() }])
+  const pushEvent = useCallback((msg, cls = '') =>
+    setEvents(ev => [...ev.slice(-49), { msg, cls, id: Date.now() + Math.random() }]),
+  [])
 
   const send = useCallback((event, data = {}) => {
     if (wsRef.current?.readyState === WebSocket.OPEN)
@@ -274,225 +498,57 @@ export default function App() {
     }
   }
 
-  // ── Auth ────────────────────────────────────────────────────────────────
-  function AuthScreen() {
-    const [mode, setMode] = useState('login')
-    const [form, setForm] = useState({ username: '', password: '', email: '' })
-    const [busy, setBusy] = useState(false)
-
-    const submit = async (e) => {
-      e.preventDefault(); setBusy(true); setError('')
-      try {
-        if (mode === 'login') {
-          const d = await apiPost('/auth/login', { username: form.username, password: form.password })
-          localStorage.setItem('token', d.access_token)
-          localStorage.setItem('username', form.username)
-          setToken(d.access_token); setUsername(form.username); setScreen('lobby')
-        } else {
-          await apiJson('/auth/register', form)
-          setMode('login')
-          setError('') 
-          pushEvent('Registered! Please log in.', 'system')
-        }
-      } catch (err) { setError(err.message) }
-      finally { setBusy(false) }
-    }
-
+  // ── Route ───────────────────────────────────────────────────────────────
+  // Conditional rendering — all screen components are stable module-level
+  // references, so React will never unmount+remount them spuriously.
+  if (screen === 'auth') {
     return (
-      <div className="center fade">
-        <div className="card">
-          <h1>🎨 Scribble.io</h1>
-          <p className="sub">{mode === 'login' ? 'Log in to play' : 'Create an account'}</p>
-          {error && <div className="error-box">{error}</div>}
-          <form onSubmit={submit}>
-            <div className="field"><label>Username</label>
-              <input value={form.username} onChange={e => setForm(f => ({...f, username: e.target.value}))} required />
-            </div>
-            {mode === 'register' && (
-              <div className="field"><label>Email</label>
-                <input type="email" value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} required />
-              </div>
-            )}
-            <div className="field"><label>Password</label>
-              <input type="password" value={form.password} onChange={e => setForm(f => ({...f, password: e.target.value}))} required />
-            </div>
-            <button className="btn btn-primary" disabled={busy}>{busy ? '…' : mode === 'login' ? 'Log In' : 'Register'}</button>
-          </form>
-          <p style={{textAlign:'center', marginTop:'1rem', fontSize:'.9rem', color:'var(--muted)'}}>
-            {mode === 'login' ? 'No account? ' : 'Have an account? '}
-            <button className="btn btn-sm btn-outline" style={{marginLeft:'.4rem'}} onClick={() => { setMode(m => m==='login'?'register':'login'); setError('') }}>
-              {mode === 'login' ? 'Register' : 'Log In'}
-            </button>
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  // ── Lobby ───────────────────────────────────────────────────────────────
-  function LobbyScreen() {
-    const [joinId, setJoinId] = useState('')
-
-    const logout = () => {
-      localStorage.clear(); setToken(''); setUsername(''); setScreen('auth')
-    }
-
-    return (
-      <div className="center fade">
-        <div className="card">
-          <h1>🎨 Scribble.io</h1>
-          <p className="sub">Welcome, <strong>{username}</strong></p>
-          {error && <div className="error-box">{error}</div>}
-          <div className="lobby-actions">
-            <button className="btn btn-primary" onClick={() => { setError(''); send('create_room') }}>
-              Create Room
-            </button>
-            <div style={{display:'flex', gap:'.5rem'}}>
-              <input
-                placeholder="Room code"
-                value={joinId}
-                onChange={e => setJoinId(e.target.value.toUpperCase())}
-                style={{flex:1, textTransform:'uppercase', letterSpacing:'.1em'}}
-                maxLength={8}
-              />
-              <button className="btn btn-outline" onClick={() => { setError(''); send('join_room', { room_id: joinId }) }}>
-                Join
-              </button>
-            </div>
-            <button className="btn btn-sm" style={{background:'none', color:'var(--muted)', marginTop:'.5rem'}} onClick={logout}>
-              Log out
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // ── Room (lobby waiting screen) ─────────────────────────────────────────
-  function RoomScreen() {
-    const ready = room?.status === 'ready'
-    return (
-      <div className="center fade">
-        <div className="card">
-          <h1>Room</h1>
-          <p className="sub">Share this code with a friend</p>
-          <div className="room-id-badge">{room?.room_id}</div>
-          {error && <div className="error-box">{error}</div>}
-          <ul className="player-list">
-            {room?.players?.map(p => (
-              <li key={p}>
-                <span className={`status-dot ${ready ? 'dot-green' : 'dot-yellow'}`} />
-                {p} {p === room.creator_id && '👑'}
-              </li>
-            ))}
-          </ul>
-          {!ready && <p style={{color:'var(--muted)', textAlign:'center', fontSize:'.9rem'}}>Waiting for opponent…</p>}
-          {ready && isCreator && (
-            <button className="btn btn-success" onClick={() => send('start_game')}>
-              Start Game 🎮
-            </button>
-          )}
-          {ready && !isCreator && (
-            <p style={{color:'var(--green)', textAlign:'center', fontWeight:700}}>Ready! Waiting for host…</p>
-          )}
-          <button className="btn btn-sm btn-outline" style={{marginTop:'1rem'}} onClick={() => { setRoom(null); setScreen('lobby') }}>
-            Leave Room
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  // ── Game screen ─────────────────────────────────────────────────────────
-  function GameScreen() {
-    // guess is lifted to App() — defined alongside other game state above.
-    // Defining it here with useState caused it to reset on every parent
-    // re-render because GameScreen is a new function ref each render.
-    const isDrawer = drawerID === username
-
-    // Stable callbacks — send is already stable (useCallback([]))
-    const sendDraw  = useCallback((stroke) => send('draw', { stroke }), [send])
-    const sendClear = useCallback(() => send('clear_canvas'), [send])
-
-    const submitGuess = (e) => {
-      e.preventDefault()
-      if (!guess.trim()) return
-      send('guess', { guess: guess.trim() })
-      setGuess('')
-    }
-
-    const timerLow = timer !== null && timer <= 15
-
-    const layout = (
-      <MainGameLayout
-        isDrawer={isDrawer} sendDraw={sendDraw} sendClear={sendClear}
-        guess={guess} setGuess={setGuess} submitGuess={submitGuess}
-        timerLow={timerLow}
-        remoteStrokes={remoteStrokes} scores={scores} username={username}
-        drawerID={drawerID} word={word} wordLength={wordLength}
-        gamePhase={gamePhase} roundNum={roundNum} totalRounds={totalRounds}
-        timer={timer} events={events}
-        onSkip={() => send('skip')}
-        onChooseWord={(w) => { send('choose_word', { word: w }); setCandidates([]) }}
+      <AuthScreen
+        error={error} setError={setError}
+        setToken={setToken} setUsername={setUsername} setScreen={setScreen}
+        pushEvent={pushEvent}
       />
     )
+  }
 
+  if (screen === 'lobby') {
     return (
-      <>
-        {layout}
-        {gamePhase === 'choosing' && isDrawer && candidates.length > 0 && (
-          <div className="overlay">
-            <div className="choice-card fade">
-              <h2>Choose a word</h2>
-              <p className="sub">Pick one to draw. You have {timer}s.</p>
-              <div className="word-choices">
-                {candidates.map(w => (
-                  <button key={w} className="word-choice-btn"
-                    onClick={() => { send('choose_word', { word: w }); setCandidates([]) }}>
-                    {w}
-                  </button>
-                ))}
-              </div>
-              <div className="choice-timer">{timer}</div>
-            </div>
-          </div>
-        )}
-        {gamePhase === 'round_end' && (
-          <div className="overlay">
-            <div className="choice-card fade">
-              <h2>Round {roundNum} over!</h2>
-              <p className="sub">The word was: <strong style={{color:'var(--accent)'}}>{word}</strong></p>
-              <ScoresTable scores={scores} me={username} />
-              <p style={{color:'var(--muted)', marginTop:'1rem', fontSize:'.9rem'}}>Next round starting…</p>
-            </div>
-          </div>
-        )}
-      </>
+      <LobbyScreen
+        error={error} setError={setError}
+        username={username} send={send}
+        setToken={setToken} setUsername={setUsername} setScreen={setScreen}
+      />
     )
   }
 
-  // ── Game over ───────────────────────────────────────────────────────────
-  function GameOverScreen() {
-    const { scores: s, winner } = finalResult || {}
+  if (screen === 'room') {
     return (
-      <div className="center fade">
-        <div className="card result-card">
-          <h1>🏆 Game Over</h1>
-          <div className="winner">{winner ? `${winner} wins!` : 'Draw!'}</div>
-          {error && <div className="error-box">{error}</div>}
-          <ScoresTable scores={s || {}} me={username} />
-          <button className="btn btn-primary" style={{marginTop:'1rem'}} onClick={() => { setFinalResult(null); setScreen('lobby'); setRoom(null) }}>
-            Play Again
-          </button>
-        </div>
-      </div>
+      <RoomScreen
+        room={room} error={error} isCreator={isCreator}
+        send={send} setRoom={setRoom} setScreen={setScreen}
+      />
     )
   }
 
+  if (screen === 'game_over') {
+    return (
+      <GameOverScreen
+        finalResult={finalResult} error={error} username={username}
+        setFinalResult={setFinalResult} setScreen={setScreen} setRoom={setRoom}
+      />
+    )
+  }
 
-
-  // ── Route ───────────────────────────────────────────────────────────────
-  const screens = { auth: AuthScreen, lobby: LobbyScreen, room: RoomScreen, game: GameScreen, game_over: GameOverScreen }
-  const Screen  = screens[screen] || LobbyScreen
-  return <Screen />
+  // Default: game screen
+  return (
+    <GameScreen
+      drawerID={drawerID} username={username} send={send}
+      guess={guess} setGuess={setGuess}
+      remoteStrokes={remoteStrokes} scores={scores}
+      word={word} wordLength={wordLength}
+      gamePhase={gamePhase} roundNum={roundNum} totalRounds={totalRounds}
+      timer={timer} events={events}
+      candidates={candidates} setCandidates={setCandidates}
+    />
+  )
 }
