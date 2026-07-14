@@ -121,7 +121,7 @@ input:focus, textarea:focus { border-color: var(--accent); }
   background: var(--card); border-radius: var(--radius); border: 1px solid var(--border);
   display: flex; flex-direction: column; overflow: hidden;
 }
-.canvas-wrap { flex: 1; display: flex; align-items: center; justify-content: center; background: #fff; }
+.canvas-wrap { flex: 1; background: #fff; overflow: hidden; }
 canvas { display: block; cursor: crosshair; touch-action: none; }
 .canvas-tools {
   display: flex; gap: .5rem; padding: .6rem; background: var(--surface);
@@ -158,6 +158,18 @@ canvas { display: block; cursor: crosshair; touch-action: none; }
 
 .guess-input-row { display: flex; gap: .5rem; }
 .guess-input-row input { flex: 1; }
+.wrong-msg {
+  background: rgba(255,101,132,.12);
+  border: 1px solid var(--accent2);
+  border-radius: 6px;
+  color: var(--accent2);
+  font-size: .82rem;
+  font-weight: 600;
+  padding: .4rem .7rem;
+  margin-bottom: .4rem;
+  cursor: pointer;
+  animation: fadein .2s ease;
+}
 
 .events-list {
   list-style: none; display: flex; flex-direction: column; gap: .3rem;

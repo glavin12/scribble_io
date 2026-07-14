@@ -37,7 +37,7 @@ def _ok(event: str, **data) -> dict:
 
 
 def _err(code: str, message: str) -> dict:
-    return {"event": "error", "code": code, "message": message}
+    return {"event": "error", "data": {"code": code, "message": message}}
 
 
 async def _send_err(connection_id: str, code: str, message: str) -> None:

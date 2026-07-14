@@ -29,9 +29,17 @@ export default function Canvas({ isDrawer, onDraw, onClear, remoteStrokes }) {
   // on every reconcile, which clears canvas contents.
   useEffect(() => {
     const canvas = canvasRef.current
-    canvas.width  = 700
-    canvas.height = 500
-  }, []) // empty deps = runs once
+    // Size canvas to its actual rendered pixel size so there are no dead zones
+    const resize = () => {
+      const rect = canvas.parentElement.getBoundingClientRect()
+      canvas.width  = Math.floor(rect.width)
+      canvas.height = Math.floor(rect.height)
+    }
+    resize()
+    const ro = new ResizeObserver(resize)
+    ro.observe(canvas.parentElement)
+    return () => ro.disconnect()
+  }, []) // ponytail: ResizeObserver is native — no lib needed
 
   // processedRef tracks how many strokes we've already drawn.
   // useEffect only processes remoteStrokes[processedRef.current..end].
@@ -109,10 +117,10 @@ export default function Canvas({ isDrawer, onDraw, onClear, remoteStrokes }) {
   return (
     <div className="canvas-panel">
       <div className="canvas-wrap">
-        {/* No width/height JSX props — set once via useEffect above */}
+        {/* No width/height JSX props — set via ResizeObserver in useEffect above */}
         <canvas
           ref={canvasRef}
-          style={{ maxWidth: '100%', maxHeight: '100%' }}
+          style={{ display: 'block', width: '100%', height: '100%' }}
           onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}
           onTouchStart={onDown} onTouchMove={onMove} onTouchEnd={onUp}
         />

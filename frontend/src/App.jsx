@@ -80,6 +80,9 @@ function MainGameLayout({
         {!isDrawer && gamePhase === 'drawing' && (
           <div className="guess-box">
             <div className="box-title">Your guess</div>
+            {wrongMsg && (
+              <div className="wrong-msg" onClick={() => setWrongMsg('')}>{wrongMsg} ✕</div>
+            )}
             <form className="guess-input-row" onSubmit={submitGuess}>
               <input value={guess} onChange={e => setGuess(e.target.value)} placeholder="Type and press Enter…" autoFocus />
               <button className="btn btn-primary btn-sm" type="submit">→</button>
@@ -240,7 +243,7 @@ function GameScreen({
   drawerID, username, send, guess, setGuess,
   remoteStrokes, scores, word, wordLength,
   gamePhase, roundNum, totalRounds, timer, events,
-  candidates, setCandidates,
+  candidates, setCandidates, hostId, wrongMsg, setWrongMsg,
 }) {
   // guess is lifted to App() — defined alongside other game state above.
   const isDrawer = drawerID === username
@@ -298,7 +301,17 @@ function GameScreen({
             <h2>Round {roundNum} over!</h2>
             <p className="sub">The word was: <strong style={{color:'var(--accent)'}}>{word}</strong></p>
             <ScoresTable scores={scores} me={username} />
-            <p style={{color:'var(--muted)', marginTop:'1rem', fontSize:'.9rem'}}>Next round starting…</p>
+            {username === hostId ? (
+              <button
+                className="btn btn-success"
+                style={{marginTop:'1rem'}}
+                onClick={() => send('next_round')}
+              >
+                Start Next Round ▶
+              </button>
+            ) : (
+              <p style={{color:'var(--muted)', marginTop:'1rem', fontSize:'.9rem'}}>Waiting for host to start next round…</p>
+            )}
           </div>
         </div>
       )}
@@ -354,6 +367,8 @@ export default function App() {
   const [events,     setEvents]     = useState([])     // chat/event log
   const [finalResult,setFinalResult]= useState(null)   // {scores, winner}
   const [guess,      setGuess]      = useState('')     // lifted up — survives game re-renders
+  const [hostId,     setHostId]     = useState(null)   // who controls next-round
+  const [wrongMsg,   setWrongMsg]   = useState('')     // wrong-guess feedback
 
   // Canvas
   const [remoteStrokes, setRemoteStrokes] = useState([])
@@ -469,7 +484,12 @@ export default function App() {
 
       case 'player_guessed':
         setScores(data.scores)
+        setWrongMsg('')  // clear any wrong-guess banner on correct guess
         pushEvent(`${data.player_id} guessed correctly! (+${data.earned})`, 'correct')
+        break
+
+      case 'wrong_guess':
+        setWrongMsg(data.message || 'Wrong answer!')
         break
 
       case 'timer_tick':
@@ -481,6 +501,8 @@ export default function App() {
         setGamePhase('round_end')
         setTimer(null)
         setWord(data.word)
+        setWrongMsg('')
+        if (data.host_id) setHostId(data.host_id)
         pushEvent(`Round ended. Word was: ${data.word} (${data.reason})`, 'system')
         break
 
@@ -549,6 +571,7 @@ export default function App() {
       gamePhase={gamePhase} roundNum={roundNum} totalRounds={totalRounds}
       timer={timer} events={events}
       candidates={candidates} setCandidates={setCandidates}
+      hostId={hostId} wrongMsg={wrongMsg} setWrongMsg={setWrongMsg}
     />
   )
 }

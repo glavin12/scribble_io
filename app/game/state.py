@@ -51,11 +51,12 @@ IN_DRAW         = "draw"
 IN_CLEAR        = "clear_canvas"
 IN_GUESS        = "guess"
 IN_SKIP         = "skip"          # drawer skips (auto-picks next word? or ends round)
+IN_NEXT_ROUND   = "next_round"    # host manually starts the next round
 
 # Events ws.py routes directly into GameRoom.handle_event()
 # ponytail: frozenset because membership tests are the only operation
 GAME_EVENTS: frozenset[str] = frozenset(
-    {IN_CHOOSE_WORD, IN_DRAW, IN_CLEAR, IN_GUESS, IN_SKIP}
+    {IN_CHOOSE_WORD, IN_DRAW, IN_CLEAR, IN_GUESS, IN_SKIP, IN_NEXT_ROUND}
 )
 
 # ---------------------------------------------------------------------------
@@ -73,3 +74,4 @@ OUT_ROUND_ENDED    = "round_ended"
 OUT_GAME_OVER      = "game_over"
 OUT_TIMER_TICK     = "timer_tick"
 OUT_ERROR          = "error"
+OUT_WRONG_GUESS    = "wrong_guess"   # sent only to the guesser: attempts remaining

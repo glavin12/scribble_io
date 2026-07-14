@@ -36,6 +36,7 @@ from app.game.state import (
     IN_CLEAR,
     IN_DRAW,
     IN_GUESS,
+    IN_NEXT_ROUND,
     IN_SKIP,
     MIN_PLAYERS,
     OUT_CLEAR,
@@ -49,6 +50,7 @@ from app.game.state import (
     OUT_ROUND_STARTED,
     OUT_TIMER_TICK,
     OUT_WORD_CHOICES,
+    OUT_WRONG_GUESS,
     ROUNDS,
     TICK_INTERVAL,
     WORD_CHOICES,
@@ -139,6 +141,7 @@ class GameRoom:
     def __init__(self, room_id: str, players: list[str]) -> None:
         self._room_id   = room_id
         self._players   = list(players)
+        self._host_id   = players[0]          # first player is the host
         self._state     = GameState.WAITING
         self._scores: dict[str, int] = {p: 0 for p in self._players}
         self._round     = 0
@@ -147,6 +150,9 @@ class GameRoom:
         self._candidates: list[str]   = []   # words offered to drawer this round
         self._used_words: list[str]   = []   # avoid repeating words in same game
         self._guessed: set[str]       = set()
+        self._exhausted: set[str]     = set()  # players who used all 5 wrong guesses
+        self._wrong_guesses: dict[str, int] = {}  # player_id -> wrong attempt count
+        self._skip_count: int         = 0    # consecutive choice-deadline skips
         self._start_idx: int          = random.randrange(len(self._players))
         self._timer: _RoundTimer | None = None
 
@@ -185,6 +191,7 @@ class GameRoom:
             IN_CLEAR:       self._on_clear,
             IN_GUESS:       self._on_guess,
             IN_SKIP:        self._on_skip,
+            IN_NEXT_ROUND:  self._on_next_round,
         }
         handler = dispatch.get(event)
         if handler:
@@ -213,6 +220,12 @@ class GameRoom:
     async def _start_round(self) -> None:
         self._round   += 1
         self._guessed  = set()
+        self._exhausted = set()
+        self._wrong_guesses = {}
+        await self._begin_choosing()
+
+    async def _begin_choosing(self) -> None:
+        """Set up the word-choice phase for the current drawer. Safe to call on retries."""
         self._state    = GameState.CHOOSING
 
         # Deterministic drawer rotation — works for any player count
@@ -221,7 +234,7 @@ class GameRoom:
 
         # Pick WORD_CHOICES candidates; the drawer will pick one
         self._candidates = pick_words(WORD_CHOICES, exclude=self._used_words)
-        self._word = None  # set after drawer chooses (or auto-pick on deadline)
+        self._word = None
 
         # Broadcast round metadata (no word yet — drawer still choosing)
         await self._broadcast(
@@ -241,7 +254,7 @@ class GameRoom:
             round_number=self._round,
         )
 
-        # Start choice deadline — auto-picks first candidate if drawer is slow
+        # Start choice deadline
         self._timer = _RoundTimer(
             duration=CHOOSE_TIME,
             on_tick=self._on_choice_tick,
@@ -302,13 +315,13 @@ class GameRoom:
             word=self._word,
             scores=self._scores,
             reason=reason,
+            host_id=self._host_id,   # let clients know who can start next round
         )
         logger.info("Round %d ended — room='%s' reason=%s", self._round, self._room_id, reason)
 
         if self._round >= ROUNDS or len(self._players) < MIN_PLAYERS:
             await self.end_game()
-        else:
-            await self._start_round()
+        # else: stay in ROUND_END — host must send next_round to continue
 
     async def end_game(self, reason: str = "completed") -> None:
         if self._timer:
@@ -318,6 +331,10 @@ class GameRoom:
         winner = max(self._scores, key=self._scores.get, default=None)
         await self._broadcast(OUT_GAME_OVER, scores=self._scores, winner=winner, reason=reason)
         logger.info("Game over — room='%s' winner='%s' scores=%s", self._room_id, winner, self._scores)
+        # Clean up room so players can create/join new rooms immediately
+        # ponytail: import here to avoid circular import at module level
+        from app.services.room_manager import room_manager as _rm
+        await _rm.delete_room(self._room_id)
 
     # ------------------------------------------------------------------
     # Event handlers
@@ -366,33 +383,54 @@ class GameRoom:
         if player_id in self._guessed:
             await self._err(player_id, "ALREADY_GUESSED", "You already guessed correctly.")
             return
+        if player_id in self._exhausted:
+            await self._err(player_id, "NO_ATTEMPTS_LEFT", "You have used all 5 attempts.")
+            return
 
         guess = str(data.get("guess", "")).strip().lower()
         if not guess:
             return  # silently drop empty — ponytail: no need to error on blank
 
-        if guess != (self._word or "").lower():
-            return  # wrong guess: silent drop — don't confirm it's wrong
+        if guess == (self._word or "").lower():
+            # Correct!
+            earned = calculate_guesser_score(
+                elapsed=self._timer.elapsed() if self._timer else 0.0,
+                total=DRAW_TIME,
+                base=GUESSER_BASE,
+                bonus_max=GUESSER_TIME_BONUS,
+            )
+            self._scores[player_id] += earned
+            self._guessed.add(player_id)
+            await self._broadcast(
+                OUT_GUESSED,
+                player_id=player_id,
+                earned=earned,
+                scores=self._scores,
+            )
+            logger.info("'%s' guessed correctly in room '%s' (+%d).", player_id, self._room_id, earned)
+            await self._check_all_guessed()
+            return
 
-        # Correct!
-        earned = calculate_guesser_score(
-            elapsed=self._timer.elapsed() if self._timer else 0.0,
-            total=DRAW_TIME,
-            base=GUESSER_BASE,
-            bonus_max=GUESSER_TIME_BONUS,
-        )
-        self._scores[player_id] += earned
-        self._guessed.add(player_id)
+        # Wrong guess
+        MAX_WRONG = 5
+        self._wrong_guesses[player_id] = self._wrong_guesses.get(player_id, 0) + 1
+        attempts_used = self._wrong_guesses[player_id]
+        attempts_left = MAX_WRONG - attempts_used
 
-        await self._broadcast(
-            OUT_GUESSED,
-            player_id=player_id,
-            earned=earned,
-            scores=self._scores,
-        )
-        logger.info("'%s' guessed correctly in room '%s' (+%d).", player_id, self._room_id, earned)
-
-        await self._check_all_guessed()
+        if attempts_left <= 0:
+            self._exhausted.add(player_id)
+            await self._send(
+                player_id, OUT_WRONG_GUESS,
+                attempts_left=0,
+                message="No attempts left! Only the drawer scores now.",
+            )
+            await self._check_all_guessed()  # exhausted counts as 'done'
+        else:
+            await self._send(
+                player_id, OUT_WRONG_GUESS,
+                attempts_left=attempts_left,
+                message=f"Wrong answer! {attempts_left} attempt{'s' if attempts_left != 1 else ''} left.",
+            )
 
     async def _on_skip(self, player_id: str, data: dict) -> None:
         if self._state != GameState.DRAWING:
@@ -403,6 +441,15 @@ class GameRoom:
             return
         await self._end_round("skipped")
 
+    async def _on_next_round(self, player_id: str, data: dict) -> None:
+        if self._state != GameState.ROUND_END:
+            await self._err(player_id, "INVALID_STATE", "Not in round-end phase.")
+            return
+        if player_id != self._host_id:
+            await self._err(player_id, "NOT_HOST", "Only the host can start the next round.")
+            return
+        await self._start_round()
+
     # ------------------------------------------------------------------
     # Timer callbacks
     # ------------------------------------------------------------------
@@ -412,11 +459,21 @@ class GameRoom:
         await self._send(self._drawer_id, OUT_TIMER_TICK, phase="choosing", remaining=remaining)
 
     async def _on_choice_deadline(self) -> None:
-        """Drawer didn't pick in time — auto-pick the first candidate."""
+        """Drawer didn't pick — silently rotate to next player and retry choosing."""
         if self._state != GameState.CHOOSING:
             return
-        logger.info("Choice deadline — auto-picking for '%s' in room '%s'.", self._drawer_id, self._room_id)
-        await self._begin_drawing(self._candidates[0])
+        self._skip_count += 1
+        logger.info(
+            "Choice deadline — '%s' skipped in room '%s' (skip_count=%d).",
+            self._drawer_id, self._room_id, self._skip_count,
+        )
+        if self._skip_count >= 3:
+            await self.end_game("too_many_skips")
+            return
+        # Rotate start_idx so _begin_choosing picks the next player
+        self._start_idx = (self._start_idx + 1) % len(self._players)
+        # ponytail: just restart choosing — no round_ended, no overlay, no host prompt
+        await self._begin_choosing()
 
     async def _on_draw_tick(self, remaining: int) -> None:
         await self._broadcast(OUT_TIMER_TICK, phase="drawing", remaining=remaining)
@@ -431,7 +488,8 @@ class GameRoom:
 
     async def _check_all_guessed(self) -> None:
         non_drawers = [p for p in self._players if p != self._drawer_id]
-        if non_drawers and all(p in self._guessed for p in non_drawers):
+        # Round ends when every non-drawer has either guessed correctly OR exhausted attempts
+        if non_drawers and all(p in self._guessed or p in self._exhausted for p in non_drawers):
             await self._end_round("all_guessed")
 
     async def _send(self, player_id: str, event: str, **data) -> None:

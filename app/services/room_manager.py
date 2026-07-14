@@ -91,9 +91,12 @@ class RoomManager:
         """
         if creator_id in self._user_to_room:
             existing_room_id = self._user_to_room[creator_id]
-            raise AlreadyInRoom(
-                f"User '{creator_id}' is already in room '{existing_room_id}'."
-            )
+            if existing_room_id in self._rooms:
+                raise AlreadyInRoom(
+                    f"User '{creator_id}' is already in room '{existing_room_id}'."
+                )
+            # ponytail: stale entry — room was deleted, clean it up silently
+            del self._user_to_room[creator_id]
 
         room_id = self._unique_room_id()
         room = Room(
@@ -121,13 +124,16 @@ class RoomManager:
 
         if user_id in self._user_to_room:
             existing = self._user_to_room[user_id]
-            if existing == room_id:
+            if existing in self._rooms:
+                if existing == room_id:
+                    raise AlreadyInRoom(
+                        f"User '{user_id}' is already in room '{room_id}'."
+                    )
                 raise AlreadyInRoom(
-                    f"User '{user_id}' is already in room '{room_id}'."
+                    f"User '{user_id}' is already in a different room '{existing}'."
                 )
-            raise AlreadyInRoom(
-                f"User '{user_id}' is already in a different room '{existing}'."
-            )
+            # ponytail: stale entry — room was deleted, clean it up silently
+            del self._user_to_room[user_id]
 
         if len(room.players) >= self.MAX_PLAYERS:
             raise RoomFull(f"Room '{room_id}' is full.")
