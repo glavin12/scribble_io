@@ -112,7 +112,8 @@ function MainGameLayout({
 function AuthScreen({ error, setError, setToken, setUsername, setScreen, setIsGuest, pushEvent }) {
   const [mode, setMode] = useState('login')
   const [form, setForm] = useState({ username: '', password: '', email: '' })
-  const [guestNick, setGuestNick] = useState('')
+  // ponytail: seed from localStorage so returning guests keep their name
+  const [guestNick, setGuestNick] = useState(() => localStorage.getItem('guestNick') || '')
   const [busy, setBusy] = useState(false)
 
   const submit = async (e) => {
@@ -144,50 +145,131 @@ function AuthScreen({ error, setError, setToken, setUsername, setScreen, setIsGu
   }
 
   return (
-    <div className="center fade">
-      <div className="card">
-        <h1>🎨 Scribble.io</h1>
+    <div className="auth-split">
+      {/* ── Left: Login Form ── */}
+      <section className="auth-left">
+        {/* Brand */}
+        <div className="auth-brand">
+          <span className="material-symbols-outlined auth-brand-icon">brush</span>
+          <h1 className="auth-brand-name">DoodleDash</h1>
+        </div>
 
-        {/* Guest path — fast, no credentials */}
-        <p className="sub">Jump right in</p>
-        {error && <div className="error-box">{error}</div>}
-        <form onSubmit={playAsGuest}>
-          <div className="field"><label>Nickname</label>
-            <input value={guestNick} onChange={e => setGuestNick(e.target.value)} placeholder="Pick a name…" maxLength={20} required />
-          </div>
-          <button className="btn btn-success" type="submit">Play as Guest 🎮</button>
-        </form>
+        <div className="auth-form-wrap">
+          <header className="auth-header">
+            <h2 className="auth-title">{mode === 'login' ? 'Welcome Back!' : 'Create Account'}</h2>
+            <p className="auth-subtitle">
+              {mode === 'login'
+                ? "Ready to watch your friends draw a \"cat\" that looks suspiciously like a potato?"
+                : "Join the fun — terrible art creates unforgettable moments."}
+            </p>
+          </header>
 
-        <div className="auth-divider"><span>or</span></div>
+          {error && <div className="auth-error">{error}</div>}
 
-        {/* Login/Register path */}
-        <p className="sub" style={{marginBottom:'.75rem'}}>{mode === 'login' ? 'Log in for saved stats' : 'Create an account'}</p>
-        <form onSubmit={submit}>
-          <div className="field"><label>Username</label>
-            <input value={form.username} onChange={e => setForm(f => ({...f, username: e.target.value}))} required />
-          </div>
-          {mode === 'register' && (
-            <div className="field"><label>Email</label>
-              <input type="email" value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} required />
+          {/* Divider */}
+          <div className="auth-divider-dd"><span>or email</span></div>
+
+          {/* Email/Password Form */}
+          <form className="auth-form" onSubmit={submit}>
+            <div className="auth-field">
+              <label>Username</label>
+              <input value={form.username} onChange={e => setForm(f => ({...f, username: e.target.value}))} placeholder="sketchy_artist" required />
             </div>
-          )}
-          <div className="field"><label>Password</label>
-            <input type="password" value={form.password} onChange={e => setForm(f => ({...f, password: e.target.value}))} required />
+            {mode === 'register' && (
+              <div className="auth-field">
+                <label>Email Address</label>
+                <input type="email" value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} placeholder="sketchy@artist.com" required />
+              </div>
+            )}
+            <div className="auth-field">
+              <div className="auth-field-row">
+                <label>Password</label>
+                {mode === 'login' && <a className="auth-forgot" href="#">Forgot?</a>}
+              </div>
+              <input type="password" value={form.password} onChange={e => setForm(f => ({...f, password: e.target.value}))} placeholder="••••••••" required />
+            </div>
+            <button className="auth-btn-submit" type="submit" disabled={busy}>
+              {busy ? '…' : mode === 'login' ? 'Login' : 'Register'}
+            </button>
+          </form>
+
+          {/* Toggle login/register */}
+          <p className="auth-toggle">
+            {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
+            <button className="auth-toggle-btn" onClick={() => { setMode(m => m==='login'?'register':'login'); setError('') }}>
+              {mode === 'login' ? 'Sign Up' : 'Log In'}
+            </button>
+          </p>
+
+          {/* Guest Option */}
+          <div className="auth-guest-section">
+            <form className="auth-guest-form" onSubmit={playAsGuest}>
+              <input value={guestNick} onChange={e => setGuestNick(e.target.value)} placeholder="Pick a nickname…" maxLength={20} className="auth-guest-input" required />
+              <button className="auth-btn-guest" type="submit">
+                <span className="material-symbols-outlined" style={{fontSize:18}}>person_search</span>
+                Play Without Account
+              </button>
+            </form>
           </div>
-          <button className="btn btn-primary" disabled={busy}>{busy ? '…' : mode === 'login' ? 'Log In' : 'Register'}</button>
-        </form>
-        <p style={{textAlign:'center', marginTop:'1rem', fontSize:'.9rem', color:'var(--muted)'}}>
-          {mode === 'login' ? 'No account? ' : 'Have an account? '}
-          <button className="btn btn-sm btn-outline" style={{marginLeft:'.4rem'}} onClick={() => { setMode(m => m==='login'?'register':'login'); setError('') }}>
-            {mode === 'login' ? 'Register' : 'Log In'}
-          </button>
-        </p>
-      </div>
+        </div>
+      </section>
+
+      {/* ── Right: Illustration ── */}
+      <section className="auth-right">
+        {/* Floating background icons */}
+        <div className="auth-bg-icon auth-bg-icon-1"><span className="material-symbols-outlined">draw</span></div>
+        <div className="auth-bg-icon auth-bg-icon-2"><span className="material-symbols-outlined">palette</span></div>
+        <div className="auth-bg-icon auth-bg-icon-3"><span className="material-symbols-outlined">star</span></div>
+
+        <div className="auth-illust floating-auth">
+          {/* Score badge top-left */}
+          <div className="auth-badge auth-badge-top">
+            <div className="auth-badge-avatar" style={{background:'var(--dd-primary-fixed)'}}>🐦</div>
+            <div>
+              <p className="auth-badge-name">ArtieMcDraw</p>
+              <p className="auth-badge-pts">1,240 pts</p>
+            </div>
+          </div>
+          {/* Score badge bottom-right */}
+          <div className="auth-badge auth-badge-bot">
+            <div className="auth-badge-avatar" style={{background:'var(--dd-tertiary-container)'}}>🐱</div>
+            <div>
+              <p className="auth-badge-name">ScribblePro</p>
+              <p className="auth-badge-pts">950 pts</p>
+            </div>
+          </div>
+
+          {/* Chat bubbles */}
+          <div className="auth-bubble auth-bubble-1">Bird?</div>
+          <div className="auth-bubble auth-bubble-2">Dragon?</div>
+          <div className="auth-bubble auth-bubble-3">Dinosaur!</div>
+          <div className="auth-bubble auth-bubble-4">Correct! ✨</div>
+
+          {/* Canvas */}
+          <div className="auth-canvas-card">
+            <div className="auth-canvas-inner">
+              <svg className="auth-dino-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                <path d="M30,120 C30,80 60,60 100,60 C140,60 170,80 170,120 L170,150 L30,150 Z" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="4"/>
+                <path d="M60,60 C60,40 50,20 80,20 C110,20 100,40 100,60" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="4"/>
+                <circle cx="85" cy="35" fill="currentColor" r="3"/>
+                <path d="M110,70 L130,50 M130,80 L150,60 M150,90 L170,70" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="3"/>
+                <path d="M40,150 L30,180 M60,150 L55,180 M140,150 L145,180 M160,150 L170,180" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="4"/>
+              </svg>
+            </div>
+            <div className="auth-canvas-footer">
+              <div className="auth-color-dots">
+                <span style={{background:'#f87171'}}/>
+                <span style={{background:'#60a5fa'}}/>
+                <span style={{background:'#fbbf24'}}/>
+              </div>
+              <span className="auth-round-label">Round 4/10</span>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   )
 }
-
-// ── Lobby ─────────────────────────────────────────────────────────────────────
 
 function LobbyScreen({ error, setError, username, isGuest, send, setToken, setUsername, setIsGuest, setScreen }) {
   const [joinId, setJoinId] = useState('')
@@ -197,68 +279,421 @@ function LobbyScreen({ error, setError, username, isGuest, send, setToken, setUs
   }
 
   return (
-    <div className="center fade">
-      <div className="card">
-        <h1>🎨 Scribble.io</h1>
-        <p className="sub">Welcome, <strong>{username}</strong>{isGuest ? ' (Guest)' : ''}</p>
-        {error && <div className="error-box">{error}</div>}
-        <div className="lobby-actions">
-          <button className="btn btn-primary" onClick={() => { setError(''); send('create_room') }}>
-            Create Room
-          </button>
-          <div style={{display:'flex', gap:'.5rem'}}>
-            <input
-              placeholder="Room code"
-              value={joinId}
-              onChange={e => setJoinId(e.target.value.toUpperCase())}
-              style={{flex:1, textTransform:'uppercase', letterSpacing:'.1em'}}
-              maxLength={8}
-            />
-            <button className="btn btn-outline" onClick={() => { setError(''); send('join_room', { room_id: joinId }) }}>
-              Join
+    <div className="lobby-dd">
+      {/* BG doodle icons */}
+      <div className="lobby-bg-icons">
+        <span className="material-symbols-outlined" style={{top:80,left:40,fontSize:60,transform:'rotate(12deg)'}}>brush</span>
+        <span className="material-symbols-outlined" style={{top:'50%',left:80,fontSize:40,transform:'rotate(-45deg)'}}>star</span>
+        <span className="material-symbols-outlined" style={{bottom:80,right:40,fontSize:70,transform:'rotate(-12deg)'}}>palette</span>
+        <span className="material-symbols-outlined" style={{top:160,right:80,fontSize:50,transform:'rotate(90deg)'}}>ink_eraser</span>
+      </div>
+
+      {/* Navbar */}
+      <header className="lobby-nav">
+        <nav className="lobby-nav-inner">
+          <div className="lobby-logo">
+            <span className="material-symbols-outlined" style={{fontSize:28,color:'var(--dd-primary)'}}>edit</span>
+            <span>DoodleDash</span>
+          </div>
+          <div className="lobby-nav-right">
+            <span className="lobby-user-badge">
+              {username}{isGuest ? ' 👤' : ' ⭐'}
+            </span>
+            <button className="lobby-logout-btn" onClick={leave}>
+              {isGuest ? 'Change Name' : 'Log Out'}
             </button>
           </div>
-          <button className="btn btn-sm" style={{background:'none', color:'var(--muted)', marginTop:'.5rem'}} onClick={leave}>
-            {isGuest ? 'Change nickname' : 'Log out'}
-          </button>
+        </nav>
+      </header>
+
+      <main className="lobby-main">
+        {/* Header */}
+        <div className="lobby-header">
+          <h1 className="lobby-title">Jump Right In!</h1>
+          <p className="lobby-subtitle">
+            Welcome, <strong>{username}</strong>! Pick a room and start embarrassing your artistic skills.
+          </p>
         </div>
-      </div>
+
+        {error && <div className="lobby-error">{error}</div>}
+
+        {/* Split layout */}
+        <div className="lobby-split">
+          {/* Left: Whiteboard illustration */}
+          <div className="lobby-whiteboard-wrap">
+            <div className="lobby-whiteboard">
+              {/* Timer overlay */}
+              <div className="lobby-wb-timer">
+                <span className="material-symbols-outlined" style={{fontSize:20}}>timer</span>
+                <span>42s</span>
+              </div>
+              {/* Score overlay */}
+              <div className="lobby-wb-score">
+                <div className="lobby-wb-score-header">
+                  <span>Score</span>
+                  <span className="material-symbols-outlined" style={{fontSize:14}}>leaderboard</span>
+                </div>
+                <div className="lobby-wb-score-row"><span>You</span><span style={{color:'var(--dd-primary)',fontWeight:700}}>1,240</span></div>
+                <div className="lobby-wb-score-row" style={{opacity:.7}}><span>Artie</span><span>980</span></div>
+              </div>
+              {/* Doodle SVG */}
+              <div className="lobby-wb-doodle">
+                <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className="lobby-doodle-svg">
+                  <ellipse cx="100" cy="100" rx="70" ry="40" fill="#ffd54f" stroke="#1f1b12" strokeWidth="3"/>
+                  <path d="M160,90 Q180,70 175,100 Q180,130 160,110" fill="#74f1a5" stroke="#1f1b12" strokeWidth="2"/>
+                  <path d="M40,95 Q20,80 35,100 Q20,120 40,105" fill="#74f1a5" stroke="#1f1b12" strokeWidth="2"/>
+                  <circle cx="75" cy="92" r="4" fill="#1f1b12"/>
+                  <path d="M85,105 Q100,115 115,105" fill="none" stroke="#1f1b12" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+                {/* Chat bubbles */}
+                <div className="lobby-chat-bubble lobby-chat-1">It's a fish 🐟</div>
+                <div className="lobby-chat-bubble lobby-chat-2">What is THAT? 🤨</div>
+                <div className="lobby-chat-bubble lobby-chat-3">Banana! 🍌</div>
+              </div>
+              {/* Toolbox */}
+              <div className="lobby-wb-toolbox">
+                <span style={{background:'var(--dd-primary)'}}/>
+                <span style={{background:'var(--dd-secondary)'}}/>
+                <span style={{background:'var(--dd-error, #ba1a1a)'}}/>
+                <span style={{background:'var(--dd-tertiary)'}}/>
+                <span className="material-symbols-outlined" style={{fontSize:20,opacity:.5}}>brush</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Setup panel */}
+          <div className="lobby-panel">
+            <div className="lobby-panel-card">
+              {/* Join room */}
+              <div className="lobby-join-section">
+                <label className="lobby-label">JOIN A ROOM</label>
+                <div className="lobby-join-row">
+                  <input
+                    className="lobby-join-input"
+                    placeholder="Enter room code…"
+                    value={joinId}
+                    onChange={e => setJoinId(e.target.value.toUpperCase())}
+                    maxLength={8}
+                  />
+                  <button
+                    className="lobby-btn-join"
+                    onClick={() => { setError(''); send('join_room', { room_id: joinId }) }}
+                  >
+                    Join Room
+                  </button>
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="lobby-divider"><span>or</span></div>
+
+              {/* Create room */}
+              <button
+                className="lobby-btn-create"
+                onClick={() => { setError(''); send('create_room') }}
+              >
+                Create Private Room
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Game Tips */}
+        <div className="lobby-tips">
+          <div className="lobby-tip-card lobby-tip-1">
+            <span className="lobby-tip-emoji">🎨</span>
+            <h3>Draw clearly.</h3>
+            <p>Even if you can only draw sticks, keep it simple for the guessers!</p>
+          </div>
+          <div className="lobby-tip-card lobby-tip-2">
+            <span className="lobby-tip-emoji">⚡</span>
+            <h3>Guess quickly.</h3>
+            <p>The faster you type the right answer, the more points you snag.</p>
+          </div>
+          <div className="lobby-tip-card lobby-tip-3">
+            <span className="lobby-tip-emoji">😂</span>
+            <h3>Best Memories.</h3>
+            <p>Bad drawings usually lead to the loudest laughs in the chat.</p>
+          </div>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="lobby-footer">
+        <div className="lobby-footer-inner">
+          <div>
+            <div className="lobby-footer-brand">DoodleDash</div>
+            <div className="lobby-footer-copy">© 2024 DoodleDash — Draw. Laugh. Repeat.</div>
+          </div>
+          <div className="lobby-footer-links">
+            <a href="#">Privacy</a>
+            <a href="#">Terms</a>
+            <a href="#">Support</a>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }
 
-// ── Room (lobby waiting screen) ──────────────────────────────────────────────
+// ── Waiting Room (full-page DoodleDash style) ───────────────────────────────
 
-function RoomScreen({ room, error, isCreator, send, setRoom, setScreen }) {
+// Chair positions for up to 8 players around the semicircle
+const CHAIR_POSITIONS = [
+  { left: '8%',  bottom: '42%' },  // left-back
+  { left: '5%',  bottom: '26%' },  // left-front
+  { left: '22%', bottom: '14%' },  // center-left-front
+  { left: '38%', bottom: '8%' },   // center-left
+  { left: '54%', bottom: '8%' },   // center-right
+  { left: '70%', bottom: '14%' },  // center-right-front
+  { left: '85%', bottom: '26%' },  // right-front
+  { left: '82%', bottom: '42%' },  // right-back
+]
+
+const AVATAR_COLORS = ['#735c00', '#006491', '#006d3d', '#ba1a1a', '#9C27B0', '#FF9800', '#00897B', '#5C6BC0']
+
+function RoomScreen({ room, error, isCreator, send, setRoom, setScreen, username }) {
   const ready = room?.status === 'ready'
+  const code = room?.room_id || ''
+  const players = room?.players || []
+  const [copied, setCopied] = useState(false)
+  const [rounds, setRounds] = useState(3)
+  const [drawTime, setDrawTime] = useState(80)
+
+  const copyCode = () => {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true); setTimeout(() => setCopied(false), 1500)
+    })
+  }
+
+  const startGame = () => {
+    send('start_game', { rounds, draw_time: drawTime })
+  }
+
+  const leaveRoom = () => { send('leave_room'); setRoom(null); setScreen('lobby') }
+
+  // Format seconds to display string
+  const fmtTime = (s) => s >= 60 ? `${Math.floor(s/60)}m ${s%60 ? s%60 + 's' : ''}`.trim() : `${s}s`
+
   return (
-    <div className="center fade">
-      <div className="card">
-        <h1>Room</h1>
-        <p className="sub">Share this code with a friend</p>
-        <div className="room-id-badge">{room?.room_id}</div>
-        {error && <div className="error-box">{error}</div>}
-        <ul className="player-list">
-          {room?.players?.map(p => (
-            <li key={p}>
-              <span className={`status-dot ${ready ? 'dot-green' : 'dot-yellow'}`} />
-              {p} {p === room.creator_id && '👑'}
-            </li>
-          ))}
-        </ul>
-        {!ready && <p style={{color:'var(--muted)', textAlign:'center', fontSize:'.9rem'}}>Waiting for opponent…</p>}
-        {ready && isCreator && (
-          <button className="btn btn-success" onClick={() => send('start_game')}>
-            Start Game 🎮
-          </button>
-        )}
-        {ready && !isCreator && (
-          <p style={{color:'var(--green)', textAlign:'center', fontWeight:700}}>Ready! Waiting for host…</p>
-        )}
-        <button className="btn btn-sm btn-outline" style={{marginTop:'1rem'}} onClick={() => { send('leave_room'); setRoom(null); setScreen('lobby') }}>
-          Leave Room
-        </button>
+    <div className="wr-page">
+      {/* BG decorations */}
+      <div className="wr-bg-decor">
+        <span className="material-symbols-outlined" style={{top:'10%',left:'5%',fontSize:48,color:'var(--dd-primary)',animationDelay:'0s'}}>star</span>
+        <span className="material-symbols-outlined" style={{bottom:'20%',right:'8%',fontSize:64,color:'var(--dd-secondary)',animationDelay:'2s'}}>brush</span>
+        <span className="material-symbols-outlined" style={{top:'50%',left:'20%',fontSize:36,color:'var(--dd-tertiary)',animationDelay:'1s'}}>palette</span>
       </div>
+
+      {/* Nav */}
+      <nav className="wr-nav">
+        <div className="wr-nav-inner">
+          <div className="wr-nav-brand">
+            <span className="material-symbols-outlined" style={{fontSize:28,color:'var(--dd-primary)'}}>draw</span>
+            <span>DoodleDash</span>
+          </div>
+          <div className="wr-nav-right">
+            <button className="wr-btn-leave-nav" onClick={leaveRoom}>
+              Leave Room
+              <span className="material-symbols-outlined" style={{fontSize:18}}>logout</span>
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <main className="wr-main">
+        {/* Left: Illustration + Players */}
+        <div className="wr-left">
+          {/* Classroom illustration with player avatars on chairs */}
+          <div className="wr-classroom">
+            {/* SVG classroom: whiteboard + chairs semicircle */}
+            <svg className="wr-classroom-svg" viewBox="0 0 600 380" xmlns="http://www.w3.org/2000/svg">
+              {/* Floor shadow */}
+              <ellipse cx="300" cy="340" rx="280" ry="30" fill="#eae2d3" opacity=".5"/>
+              {/* Whiteboard stand */}
+              <line x1="240" y1="200" x2="210" y2="310" stroke="#a07d50" strokeWidth="4"/>
+              <line x1="360" y1="200" x2="390" y2="310" stroke="#a07d50" strokeWidth="4"/>
+              <line x1="250" y1="260" x2="350" y2="260" stroke="#a07d50" strokeWidth="3"/>
+              {/* Whiteboard shelf */}
+              <rect x="220" y="196" width="160" height="8" rx="2" fill="#a07d50"/>
+              <rect x="260" y="198" width="20" height="4" rx="1" fill="#1f1b12"/>
+              <rect x="285" y="198" width="14" height="4" rx="1" fill="#ba1a1a"/>
+              {/* Whiteboard */}
+              <rect x="180" y="60" width="240" height="140" rx="6" fill="#fff" stroke="#1f1b12" strokeWidth="3"/>
+              <path d="M185,65 L415,65 L415,195 L185,195 Z" fill="url(#wb-grad)" opacity=".3"/>
+              <defs><linearGradient id="wb-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#e3f2fd"/><stop offset="1" stopColor="transparent"/></linearGradient></defs>
+              {/* Doodle sparkles */}
+              <text x="160" y="50" fontSize="20" opacity=".15" transform="rotate(-15 160 50)">✏️</text>
+              <text x="430" y="80" fontSize="18" opacity=".15" transform="rotate(10 430 80)">⭐</text>
+              <text x="450" y="140" fontSize="16" opacity=".12">💦</text>
+              <text x="140" y="160" fontSize="14" opacity=".12" transform="rotate(-20 140 160)">✏️</text>
+              <text x="300" y="40" fontSize="16" opacity=".12">✨</text>
+
+              {/* Chairs - semicircle */}
+              {CHAIR_POSITIONS.map((pos, i) => {
+                const cx = parseFloat(pos.left) / 100 * 600
+                const cy = 380 - parseFloat(pos.bottom) / 100 * 380
+                const colors = ['#4285f4','#4285f4','#fbbc04','#ea4335','#34a853','#4285f4','#fbbc04','#4285f4']
+                return (
+                  <g key={i} opacity={i < players.length ? 1 : .3}>
+                    {/* Chair back */}
+                    <rect x={cx-14} y={cy-28} width={28} height={20} rx={3} fill={colors[i]} stroke="#1f1b12" strokeWidth="1.5"/>
+                    {/* Chair seat */}
+                    <rect x={cx-12} y={cy-8} width={24} height={6} rx={2} fill={colors[i]} stroke="#1f1b12" strokeWidth="1.5"/>
+                    {/* Chair legs */}
+                    <line x1={cx-10} y1={cy-2} x2={cx-12} y2={cy+14} stroke="#555" strokeWidth="1.5"/>
+                    <line x1={cx+10} y1={cy-2} x2={cx+12} y2={cy+14} stroke="#555" strokeWidth="1.5"/>
+                  </g>
+                )
+              })}
+            </svg>
+
+            {/* Player avatars overlaid on chairs */}
+            {players.map((p, i) => {
+              const pos = CHAIR_POSITIONS[i] || CHAIR_POSITIONS[CHAIR_POSITIONS.length - 1]
+              const color = AVATAR_COLORS[i % AVATAR_COLORS.length]
+              return (
+                <div key={p} className="wr-avatar-on-chair" style={{left: pos.left, bottom: pos.bottom, animationDelay: `${i * 0.5}s`}}>
+                  <div className="wr-avatar-circle" style={{borderColor: color, background: color + '22'}}>
+                    <span style={{color}}>{p[0]?.toUpperCase()}</span>
+                  </div>
+                  <span className="wr-avatar-name" style={{background: color}}>{p}</span>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Player Cards Grid */}
+          <div className="wr-players-section">
+            <h2 className="wr-section-title">
+              Artists
+              <span className="wr-player-count">{players.length}/8</span>
+            </h2>
+            <div className="wr-player-grid">
+              {players.map((p, i) => {
+                const color = AVATAR_COLORS[i % AVATAR_COLORS.length]
+                return (
+                  <div key={p} className="wr-player-card" style={{transform: `rotate(${(i % 3 - 1) * 1.5}deg)`}}>
+                    <div className="wr-player-card-avatar" style={{borderColor: color, background: color + '22'}}>
+                      <span style={{color, fontSize: 22, fontWeight: 700}}>{p[0]?.toUpperCase()}</span>
+                    </div>
+                    <span className="wr-player-card-name">{p}</span>
+                    {p === room?.creator_id ? (
+                      <span className="wr-host-badge">Host</span>
+                    ) : (
+                      <span className="wr-ready-badge">Ready</span>
+                    )}
+                  </div>
+                )
+              })}
+              {/* Empty slots */}
+              {Array.from({length: Math.max(0, 2 - Math.max(0, players.length - 2))}, (_, i) => (
+                <div key={`empty-${i}`} className="wr-player-card wr-player-card-empty">
+                  <span className="material-symbols-outlined" style={{fontSize: 28, color: '#7f7662', marginBottom: 6}}>person_add</span>
+                  <span style={{fontSize: 10, fontWeight: 800, color: '#7f7662', textAlign: 'center', lineHeight: 1.2}}>
+                    {['Waiting for an artist...', 'Probably still copying the code...'][i] || 'Open slot'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Room Info + Settings */}
+        <div className="wr-right">
+          {/* Room Code Panel */}
+          <div className="wr-code-panel">
+            <div className="wr-code-panel-header">
+              <h3>Room Code</h3>
+              <span className="wr-live-dot" />
+            </div>
+            <div className="wr-code-display">
+              <span className="wr-code-text">{code}</span>
+            </div>
+            <div className="wr-code-actions">
+              <button className="wr-code-btn" onClick={copyCode}>
+                <span className="material-symbols-outlined" style={{fontSize: 18}}>
+                  {copied ? 'check_circle' : 'content_copy'}
+                </span>
+                <span>{copied ? 'Copied!' : 'Copy'}</span>
+              </button>
+            </div>
+          </div>
+
+          {error && <div className="wr-error">{error}</div>}
+
+          {/* Game Settings */}
+          <div className="wr-settings-panel">
+            <div className="wr-settings-header">
+              <span className="material-symbols-outlined" style={{color: 'var(--dd-primary)'}}>settings_suggest</span>
+              <h3>Game Settings</h3>
+            </div>
+
+            {/* Rounds */}
+            <div className="wr-setting-group">
+              <label className="wr-setting-label">Rounds</label>
+              <div className="wr-rounds-grid">
+                {[3, 5, 7].map(r => (
+                  <button
+                    key={r}
+                    className={`wr-round-btn ${rounds === r ? 'wr-round-active' : ''}`}
+                    onClick={() => isCreator && setRounds(r)}
+                    disabled={!isCreator}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Draw Time */}
+            <div className="wr-setting-group">
+              <label className="wr-setting-label">
+                Draw Time: <strong>{fmtTime(drawTime)}</strong>
+              </label>
+              {isCreator ? (
+                <div className="wr-time-control">
+                  <input
+                    type="range"
+                    min={10}
+                    max={600}
+                    step={10}
+                    value={drawTime}
+                    onChange={e => setDrawTime(+e.target.value)}
+                    className="wr-time-slider"
+                  />
+                  <div className="wr-time-labels">
+                    <span>10s</span>
+                    <span>5m</span>
+                    <span>10m</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="wr-time-readonly">{fmtTime(drawTime)} per round</div>
+              )}
+            </div>
+
+            {/* Start Game CTA */}
+            <div className="wr-cta-section">
+              {isCreator ? (
+                <button
+                  className="wr-btn-start"
+                  onClick={startGame}
+                  disabled={!ready}
+                >
+                  <span className="material-symbols-outlined" style={{fontSize: 32}}>play_circle</span>
+                  <span>{ready ? 'Start Game' : 'Need 2+ Players'}</span>
+                </button>
+              ) : (
+                <div className="wr-waiting-msg">
+                  <span className="material-symbols-outlined" style={{fontSize: 20, animation: 'room-pulse 1.5s infinite'}}>hourglass_top</span>
+                  Waiting for the host to start…
+                </div>
+              )}
+              <button className="wr-btn-leave-bottom" onClick={leaveRoom}>Leave Room</button>
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
   )
 }
@@ -371,7 +806,7 @@ function GameOverScreen({ finalResult, error, username, setFinalResult, setScree
 export default function App() {
   // Auth
   const [token,    setToken]    = useState(() => localStorage.getItem('token') || '')
-  const [username, setUsername] = useState(() => localStorage.getItem('username') || '')
+  const [username, setUsername] = useState(() => localStorage.getItem('username') || localStorage.getItem('guestNick') || '')
   const [isGuest,  setIsGuest]  = useState(() => !localStorage.getItem('token') && !!localStorage.getItem('guestNick'))
 
   // Screens: welcome | auth | lobby | room | game | game_over
@@ -593,6 +1028,7 @@ export default function App() {
       <RoomScreen
         room={room} error={error} isCreator={isCreator}
         send={send} setRoom={setRoom} setScreen={setScreen}
+        username={username}
       />
     )
   }

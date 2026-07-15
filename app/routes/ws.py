@@ -9,7 +9,7 @@ from app.core.config import settings
 from app.core.connection_manager import manager
 from app.core.security import decode_token
 from app.game.game_room import game_manager
-from app.game.state import GAME_EVENTS, IN_START_GAME, GameState
+from app.game.state import DRAW_TIME, GAME_EVENTS, IN_START_GAME, ROUNDS, GameState
 from app.models.room import RoomStatus
 from app.services.disconnect_timer_service import disconnect_timer_service
 from app.services.room_manager import (
@@ -115,7 +115,7 @@ async def websocket_endpoint(
             elif event == "leave_room":
                 await handle_leave_room(connection_id, user_id)
             elif event == IN_START_GAME:
-                await handle_start_game(connection_id, user_id)
+                await handle_start_game(connection_id, user_id, data)
             elif event in GAME_EVENTS:
                 await handle_game_event(connection_id, user_id, event, data)
             else:
@@ -306,8 +306,9 @@ async def handle_leave_room(connection_id: str, user_id: str) -> None:
     logger.info("User '%s' left room '%s' via leave_room.", user_id, room_id)
 
 
-async def handle_start_game(connection_id: str, user_id: str) -> None:
+async def handle_start_game(connection_id: str, user_id: str, data: dict | None = None) -> None:
     """Handle ``start_game`` — creator kicks off the game once room is READY."""
+    data = data or {}
     room_id = manager.get_room_id_for_connection(connection_id)
     if not room_id:
         await _send_err(connection_id, "NOT_IN_ROOM", "Join a room first.")
@@ -332,9 +333,20 @@ async def handle_start_game(connection_id: str, user_id: str) -> None:
         await _send_err(connection_id, exc.code, str(exc))
         return
 
-    game = game_manager.create_game(room_id, list(room.players))
+    # ponytail: clamp & validate here, GameRoom just uses the values
+    rounds = data.get("rounds", ROUNDS)
+    if rounds not in (3, 5, 7):
+        rounds = ROUNDS
+    draw_time = data.get("draw_time", DRAW_TIME)
+    try:
+        draw_time = int(draw_time)
+    except (TypeError, ValueError):
+        draw_time = DRAW_TIME
+    draw_time = max(10, min(600, draw_time))  # 10s–10min
+
+    game = game_manager.create_game(room_id, list(room.players), rounds=rounds, draw_time=draw_time)
     await game.start_game()
-    logger.info("Game started — room='%s' by '%s'.", room_id, user_id)
+    logger.info("Game started — room='%s' by '%s' rounds=%d draw_time=%ds.", room_id, user_id, rounds, draw_time)
 
 
 async def handle_game_event(

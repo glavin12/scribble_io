@@ -138,13 +138,15 @@ class GameRoom:
         draws the same number of times.  Works for 2–N players unchanged.
     """
 
-    def __init__(self, room_id: str, players: list[str]) -> None:
+    def __init__(self, room_id: str, players: list[str], *, rounds: int = ROUNDS, draw_time: int = DRAW_TIME) -> None:
         self._room_id   = room_id
         self._players   = list(players)
         self._host_id   = players[0]          # first player is the host
         self._state     = GameState.WAITING
         self._scores: dict[str, int] = {p: 0 for p in self._players}
         self._round     = 0
+        self._rounds    = rounds              # ponytail: host-chosen, validated by ws.py
+        self._draw_time = draw_time
         self._drawer_id: str | None   = None
         self._word: str | None        = None
         self._candidates: list[str]   = []   # words offered to drawer this round
@@ -240,7 +242,7 @@ class GameRoom:
         await self._broadcast(
             OUT_ROUND_STARTED,
             round_number=self._round,
-            total_rounds=ROUNDS,
+            total_rounds=self._rounds,
             drawer_id=self._drawer_id,
             choose_time=CHOOSE_TIME,
             scores=self._scores,
@@ -264,7 +266,7 @@ class GameRoom:
 
         logger.info(
             "Round %d/%d — room='%s' drawer='%s' candidates=%s",
-            self._round, ROUNDS, self._room_id, self._drawer_id, self._candidates,
+            self._round, self._rounds, self._room_id, self._drawer_id, self._candidates,
         )
 
     async def _begin_drawing(self, word: str) -> None:
@@ -281,13 +283,13 @@ class GameRoom:
             OUT_DRAWING_STARTED,
             round_number=self._round,
             drawer_id=self._drawer_id,
-            draw_time=DRAW_TIME,
+            draw_time=self._draw_time,
             word_length=len(word),   # hint: number of letters
         )
 
         # Start the drawing countdown
         self._timer = _RoundTimer(
-            duration=DRAW_TIME,
+            duration=self._draw_time,
             on_tick=self._on_draw_tick,
             on_expire=self._on_draw_expire,
         )
@@ -311,7 +313,7 @@ class GameRoom:
         await self._broadcast(
             OUT_ROUND_ENDED,
             round_number=self._round,
-            total_rounds=ROUNDS,
+            total_rounds=self._rounds,
             word=self._word,
             scores=self._scores,
             reason=reason,
@@ -319,7 +321,7 @@ class GameRoom:
         )
         logger.info("Round %d ended — room='%s' reason=%s", self._round, self._room_id, reason)
 
-        if self._round >= ROUNDS or len(self._players) < MIN_PLAYERS:
+        if self._round >= self._rounds or len(self._players) < MIN_PLAYERS:
             await self.end_game()
         # else: stay in ROUND_END — host must send next_round to continue
 
@@ -395,7 +397,7 @@ class GameRoom:
             # Correct!
             earned = calculate_guesser_score(
                 elapsed=self._timer.elapsed() if self._timer else 0.0,
-                total=DRAW_TIME,
+                total=self._draw_time,
                 base=GUESSER_BASE,
                 bonus_max=GUESSER_TIME_BONUS,
             )
@@ -520,8 +522,8 @@ class _GameManager:
     def __init__(self) -> None:
         self._games: dict[str, GameRoom] = {}
 
-    def create_game(self, room_id: str, players: list[str]) -> GameRoom:
-        game = GameRoom(room_id, players)
+    def create_game(self, room_id: str, players: list[str], *, rounds: int = ROUNDS, draw_time: int = DRAW_TIME) -> GameRoom:
+        game = GameRoom(room_id, players, rounds=rounds, draw_time=draw_time)
         self._games[room_id] = game
         logger.info("GameRoom created — room='%s' players=%s", room_id, players)
         return game
