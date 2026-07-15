@@ -53,6 +53,7 @@ async def _send_err(connection_id: str, code: str, message: str) -> None:
 async def websocket_endpoint(
     websocket: WebSocket,
     token: str = Query(None),
+    nickname: str = Query(None),
 ):
     """
     Single WS connection point.  Room association happens via events after connect:
@@ -61,27 +62,34 @@ async def websocket_endpoint(
         → {"event": "join_room",   "data": {"room_id": "ABCD12"}}
         → {"event": "rejoin_room", "data": {"room_id": "ABCD12"}}
 
-    Authentication is via access token passed as a query parameter:
-        ws://host/ws/?token=<access_token>
+    Auth: either a JWT access token OR a guest nickname.
+        ws://host/ws/?token=<access_token>   (logged-in user)
+        ws://host/ws/?nickname=<name>        (guest)
     """
-    # --- Auth ---
-    if not token:
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-        return
+    # --- Auth: logged-in or guest ---
+    is_guest = False
+    user_id: str | None = None
 
-    payload = decode_token(token)
-    if not payload or payload.get("type") == "refresh":
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-        return
+    if token:
+        payload = decode_token(token)
+        if payload and payload.get("type") != "refresh":
+            user_id = payload.get("username")
 
-    user_id: str | None = payload.get("username")
+    if not user_id and nickname:
+        # ponytail: strip and cap length, no further validation needed
+        user_id = nickname.strip()[:20] or None
+        is_guest = True
+
     if not user_id:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
     # --- Connect ---
     connection_id = await manager.connect(websocket, user_id)
-    logger.info("User '%s' connected (conn=%s).", user_id, connection_id)
+    logger.info("User '%s' connected (conn=%s, guest=%s).", user_id, connection_id, is_guest)
+
+    # Tell the client who they are
+    await manager.send(connection_id, _ok("connected", user_id=user_id, is_guest=is_guest))
 
     try:
         while True:
@@ -104,6 +112,8 @@ async def websocket_endpoint(
             elif event == "rejoin_room":
                 room_id = data.get("room_id", "").strip().upper()
                 await handle_rejoin_room(connection_id, user_id, room_id)
+            elif event == "leave_room":
+                await handle_leave_room(connection_id, user_id)
             elif event == IN_START_GAME:
                 await handle_start_game(connection_id, user_id)
             elif event in GAME_EVENTS:
@@ -264,6 +274,36 @@ async def handle_rejoin_room(
 # ---------------------------------------------------------------------------
 # Game event handlers
 # ---------------------------------------------------------------------------
+
+
+async def handle_leave_room(connection_id: str, user_id: str) -> None:
+    """Handle explicit ``leave_room`` — user clicked Leave Room."""
+    room_id = manager.get_room_id_for_connection(connection_id)
+    if not room_id:
+        return  # ponytail: nothing to leave, no error needed
+
+    room = await room_manager.get_room(room_id)
+    if room is None:
+        manager.unbind_from_room(connection_id)
+        return
+
+    try:
+        remaining = await room_manager.leave_room(room_id, user_id)
+    except (RoomNotFound, NotInRoom):
+        manager.unbind_from_room(connection_id)
+        return
+
+    manager.unbind_from_room(connection_id)
+
+    if remaining is None:
+        logger.info("Room '%s' deleted — all players left.", room_id)
+        return
+
+    await manager.broadcast_to_room(
+        room_id,
+        _ok("player_left", user_id=user_id, room=remaining.to_dict()),
+    )
+    logger.info("User '%s' left room '%s' via leave_room.", user_id, room_id)
 
 
 async def handle_start_game(connection_id: str, user_id: str) -> None:

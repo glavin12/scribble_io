@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import './App.css'
 import Canvas from './Canvas'
+import LandingPage from './Landing'
 
 // ── API helpers ─────────────────────────────────────────────────────────────
 
@@ -50,6 +51,7 @@ function MainGameLayout({
   isDrawer, sendDraw, sendClear, guess, setGuess, submitGuess, timerLow,
   remoteStrokes, scores, username, drawerID, word, wordLength,
   gamePhase, roundNum, totalRounds, timer, events, onSkip,
+  wrongMsg, setWrongMsg,
 }) {
   return (
     <div className="game-layout">
@@ -107,9 +109,10 @@ function MainGameLayout({
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
-function AuthScreen({ error, setError, setToken, setUsername, setScreen, pushEvent }) {
+function AuthScreen({ error, setError, setToken, setUsername, setScreen, setIsGuest, pushEvent }) {
   const [mode, setMode] = useState('login')
   const [form, setForm] = useState({ username: '', password: '', email: '' })
+  const [guestNick, setGuestNick] = useState('')
   const [busy, setBusy] = useState(false)
 
   const submit = async (e) => {
@@ -119,7 +122,7 @@ function AuthScreen({ error, setError, setToken, setUsername, setScreen, pushEve
         const d = await apiPost('/auth/login', { username: form.username, password: form.password })
         localStorage.setItem('token', d.access_token)
         localStorage.setItem('username', form.username)
-        setToken(d.access_token); setUsername(form.username); setScreen('lobby')
+        setToken(d.access_token); setUsername(form.username); setIsGuest(false); setScreen('lobby')
       } else {
         await apiJson('/auth/register', form)
         setMode('login')
@@ -130,12 +133,35 @@ function AuthScreen({ error, setError, setToken, setUsername, setScreen, pushEve
     finally { setBusy(false) }
   }
 
+  const playAsGuest = (e) => {
+    e.preventDefault()
+    const nick = guestNick.trim()
+    if (!nick) { setError('Enter a nickname'); return }
+    // ponytail: no token, just set nickname — WS will connect with ?nickname=
+    localStorage.removeItem('token')
+    localStorage.setItem('guestNick', nick)
+    setToken(''); setUsername(nick); setIsGuest(true); setScreen('lobby')
+  }
+
   return (
     <div className="center fade">
       <div className="card">
         <h1>🎨 Scribble.io</h1>
-        <p className="sub">{mode === 'login' ? 'Log in to play' : 'Create an account'}</p>
+
+        {/* Guest path — fast, no credentials */}
+        <p className="sub">Jump right in</p>
         {error && <div className="error-box">{error}</div>}
+        <form onSubmit={playAsGuest}>
+          <div className="field"><label>Nickname</label>
+            <input value={guestNick} onChange={e => setGuestNick(e.target.value)} placeholder="Pick a name…" maxLength={20} required />
+          </div>
+          <button className="btn btn-success" type="submit">Play as Guest 🎮</button>
+        </form>
+
+        <div className="auth-divider"><span>or</span></div>
+
+        {/* Login/Register path */}
+        <p className="sub" style={{marginBottom:'.75rem'}}>{mode === 'login' ? 'Log in for saved stats' : 'Create an account'}</p>
         <form onSubmit={submit}>
           <div className="field"><label>Username</label>
             <input value={form.username} onChange={e => setForm(f => ({...f, username: e.target.value}))} required />
@@ -163,18 +189,18 @@ function AuthScreen({ error, setError, setToken, setUsername, setScreen, pushEve
 
 // ── Lobby ─────────────────────────────────────────────────────────────────────
 
-function LobbyScreen({ error, setError, username, send, setToken, setUsername, setScreen }) {
+function LobbyScreen({ error, setError, username, isGuest, send, setToken, setUsername, setIsGuest, setScreen }) {
   const [joinId, setJoinId] = useState('')
 
-  const logout = () => {
-    localStorage.clear(); setToken(''); setUsername(''); setScreen('auth')
+  const leave = () => {
+    localStorage.clear(); setToken(''); setUsername(''); setIsGuest(false); setScreen('auth')
   }
 
   return (
     <div className="center fade">
       <div className="card">
         <h1>🎨 Scribble.io</h1>
-        <p className="sub">Welcome, <strong>{username}</strong></p>
+        <p className="sub">Welcome, <strong>{username}</strong>{isGuest ? ' (Guest)' : ''}</p>
         {error && <div className="error-box">{error}</div>}
         <div className="lobby-actions">
           <button className="btn btn-primary" onClick={() => { setError(''); send('create_room') }}>
@@ -192,8 +218,8 @@ function LobbyScreen({ error, setError, username, send, setToken, setUsername, s
               Join
             </button>
           </div>
-          <button className="btn btn-sm" style={{background:'none', color:'var(--muted)', marginTop:'.5rem'}} onClick={logout}>
-            Log out
+          <button className="btn btn-sm" style={{background:'none', color:'var(--muted)', marginTop:'.5rem'}} onClick={leave}>
+            {isGuest ? 'Change nickname' : 'Log out'}
           </button>
         </div>
       </div>
@@ -229,7 +255,7 @@ function RoomScreen({ room, error, isCreator, send, setRoom, setScreen }) {
         {ready && !isCreator && (
           <p style={{color:'var(--green)', textAlign:'center', fontWeight:700}}>Ready! Waiting for host…</p>
         )}
-        <button className="btn btn-sm btn-outline" style={{marginTop:'1rem'}} onClick={() => { setRoom(null); setScreen('lobby') }}>
+        <button className="btn btn-sm btn-outline" style={{marginTop:'1rem'}} onClick={() => { send('leave_room'); setRoom(null); setScreen('lobby') }}>
           Leave Room
         </button>
       </div>
@@ -272,6 +298,7 @@ function GameScreen({
       timer={timer} events={events}
       onSkip={() => send('skip')}
       onChooseWord={(w) => { send('choose_word', { word: w }); setCandidates([]) }}
+      wrongMsg={wrongMsg} setWrongMsg={setWrongMsg}
     />
   )
 
@@ -345,9 +372,11 @@ export default function App() {
   // Auth
   const [token,    setToken]    = useState(() => localStorage.getItem('token') || '')
   const [username, setUsername] = useState(() => localStorage.getItem('username') || '')
+  const [isGuest,  setIsGuest]  = useState(() => !localStorage.getItem('token') && !!localStorage.getItem('guestNick'))
 
-  // Screens: auth | lobby | room | game | game_over
-  const [screen, setScreen] = useState(token ? 'lobby' : 'auth')
+  // Screens: welcome | auth | lobby | room | game | game_over
+  // ponytail: welcome is the landing page, shown only when no session exists
+  const [screen, setScreen] = useState(token || isGuest ? 'lobby' : 'welcome')
   const [error,  setError]  = useState('')
 
   // Room state
@@ -385,10 +414,12 @@ export default function App() {
       wsRef.current.send(JSON.stringify({ event, data }))
   }, [])
 
-  // Connect WS once we have a token
+  // Connect WS once we have a token or a guest nickname
   useEffect(() => {
-    if (!token) return
-    const ws = new WebSocket(`ws://${location.host}/ws/?token=${token}`)
+    if (!token && !isGuest) return
+    // ponytail: logged-in uses ?token=, guest uses ?nickname=
+    const params = token ? `token=${token}` : `nickname=${encodeURIComponent(username)}`
+    const ws = new WebSocket(`ws://${location.host}/ws/?${params}`)
     wsRef.current = ws
 
     ws.onmessage = ({ data: raw }) => {
@@ -399,11 +430,16 @@ export default function App() {
     ws.onclose = () => { /* reconnect handled by user action for now */ }
 
     return () => ws.close()
-  }, [token])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [token, isGuest])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Server event handler ────────────────────────────────────────────────
   function handleServerEvent(event, data) {
     switch (event) {
+      case 'connected':
+        // Server confirms identity — update username if server assigned differently
+        if (data.user_id) setUsername(data.user_id)
+        break
+
       // Room events
       case 'room_created':
       case 'room_joined':
@@ -523,11 +559,20 @@ export default function App() {
   // ── Route ───────────────────────────────────────────────────────────────
   // Conditional rendering — all screen components are stable module-level
   // references, so React will never unmount+remount them spuriously.
+  if (screen === 'welcome') {
+    return (
+      <LandingPage
+        onPlayGuest={() => setScreen('auth')}
+        onLogin={() => setScreen('auth')}
+      />
+    )
+  }
+
   if (screen === 'auth') {
     return (
       <AuthScreen
         error={error} setError={setError}
-        setToken={setToken} setUsername={setUsername} setScreen={setScreen}
+        setToken={setToken} setUsername={setUsername} setIsGuest={setIsGuest} setScreen={setScreen}
         pushEvent={pushEvent}
       />
     )
@@ -537,8 +582,8 @@ export default function App() {
     return (
       <LobbyScreen
         error={error} setError={setError}
-        username={username} send={send}
-        setToken={setToken} setUsername={setUsername} setScreen={setScreen}
+        username={username} isGuest={isGuest} send={send}
+        setToken={setToken} setUsername={setUsername} setIsGuest={setIsGuest} setScreen={setScreen}
       />
     )
   }

@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>DoodleDash | Draw. Guess. Laugh.</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&amp;family=Nunito+Sans:ital,wght@0,200;0,400;0,700;0,800;1,400&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-primary": "#ffffff",
+                    "surface-bright": "#fff8f0",
+                    "primary": "#735c00",
+                    "on-surface": "#1f1b12",
+                    "on-primary-container": "#735c00",
+                    "on-error-container": "#93000a",
+                    "surface-container-high": "#f0e7d9",
+                    "surface-tint": "#735c00",
+                    "inverse-surface": "#343026",
+                    "secondary": "#006491",
+                    "outline": "#7f7662",
+                    "on-tertiary-container": "#006d3e",
+                    "surface": "#fff8f0",
+                    "secondary-fixed-dim": "#8aceff",
+                    "surface-container-low": "#fbf3e4",
+                    "surface-dim": "#e1d9cb",
+                    "on-primary-fixed-variant": "#574500",
+                    "error-container": "#ffdad6",
+                    "secondary-container": "#7bc9ff",
+                    "on-surface-variant": "#4d4634",
+                    "primary-fixed-dim": "#ebc23e",
+                    "outline-variant": "#d0c6ae",
+                    "on-primary-fixed": "#241a00",
+                    "inverse-on-surface": "#f8f0e1",
+                    "on-tertiary-fixed": "#00210f",
+                    "surface-container-highest": "#eae2d3",
+                    "on-error": "#ffffff",
+                    "on-secondary-fixed": "#001e2f",
+                    "tertiary-fixed-dim": "#60de94",
+                    "on-secondary-fixed-variant": "#004b6f",
+                    "inverse-primary": "#ebc23e",
+                    "surface-variant": "#eae2d3",
+                    "on-tertiary-fixed-variant": "#00522d",
+                    "secondary-fixed": "#c9e6ff",
+                    "on-secondary": "#ffffff",
+                    "on-background": "#1f1b12",
+                    "surface-container-lowest": "#ffffff",
+                    "primary-fixed": "#ffe087",
+                    "on-secondary-container": "#00547a",
+                    "surface-container": "#f6edde",
+                    "background": "#fff8f0",
+                    "primary-container": "#ffd54f",
+                    "on-tertiary": "#ffffff",
+                    "tertiary-fixed": "#7efbae",
+                    "tertiary-container": "#74f1a5",
+                    "error": "#ba1a1a",
+                    "tertiary": "#006d3d"
+            },
+            "borderRadius": {
+                    "DEFAULT": "1rem",
+                    "lg": "2rem",
+                    "xl": "3rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "margin-mobile": "16px",
+                    "asymmetric-offset": "12px",
+                    "container-max": "1200px",
+                    "unit": "8px",
+                    "gutter": "24px"
+            },
+            "fontFamily": {
+                    "headline-md": ["Quicksand"],
+                    "body-md": ["Nunito Sans"],
+                    "display-lg": ["Quicksand"],
+                    "label-bold": ["Nunito Sans"],
+                    "display-lg-mobile": ["Quicksand"],
+                    "body-lg": ["Nunito Sans"]
+            },
+            "fontSize": {
+                    "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "700"}],
+                    "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                    "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "label-bold": ["14px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "800"}],
+                    "display-lg-mobile": ["32px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                    "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "500"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        .hard-drop-primary {
+            box-shadow: 4px 4px 0px 0px #735c00;
+        }
+        .hard-drop-secondary {
+            box-shadow: 4px 4px 0px 0px #006491;
+        }
+        .hard-drop-tertiary {
+            box-shadow: 4px 4px 0px 0px #006d3d;
+        }
+        
+        .interactive-press:active {
+            transform: translate(2px, 2px);
+            box-shadow: 0px 0px 0px 0px transparent;
+        }
+
+        .floating {
+            animation: floating 4s ease-in-out infinite;
+        }
+
+        @keyframes floating {
+            0% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(1deg); }
+            100% { transform: translateY(0px) rotate(0deg); }
+        }
+
+        .drift {
+            animation: drift 20s linear infinite;
+        }
+
+        @keyframes drift {
+            from { background-position: 0 0; }
+            to { background-position: 100% 100%; }
+        }
+
+        .doodle-bg {
+            background-image: radial-gradient(circle, #735c0022 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        .sketch-border {
+            border: 2px solid #1f1b12;
+            border-radius: 255px 15px 225px 15px/15px 225px 15px 255px;
+        }
+    </style>
+</head>
+<body class="bg-background font-body-md text-on-surface overflow-x-hidden">
+<!-- Global Floating Background Elements -->
+<div class="fixed inset-0 pointer-events-none opacity-5 z-0 doodle-bg drift"></div>
+<div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+<span class="material-symbols-outlined absolute top-20 left-[10%] text-6xl rotate-12 opacity-10">draw</span>
+<span class="material-symbols-outlined absolute top-[40%] right-[5%] text-8xl -rotate-12 opacity-10">auto_awesome</span>
+<span class="material-symbols-outlined absolute bottom-[20%] left-[15%] text-7xl rotate-45 opacity-10">palette</span>
+<span class="material-symbols-outlined absolute top-[70%] right-[12%] text-5xl rotate-6 opacity-10">sentiment_very_satisfied</span>
+</div>
+<!-- Navigation -->
+<header class="sticky top-0 z-50 bg-surface/80 backdrop-blur-md border-b-2 border-outline-variant">
+<nav class="flex justify-between items-center w-full px-margin-mobile md:px-gutter max-w-container-max mx-auto h-20">
+<div class="flex items-center gap-2 font-headline-md text-headline-md font-bold text-primary">
+<span class="material-symbols-outlined text-4xl" data-weight="fill" style="font-variation-settings: 'FILL' 1;">edit</span>
+<span>DoodleDash</span>
+</div>
+<div class="hidden md:flex gap-gutter items-center">
+<a class="text-on-surface-variant hover:text-primary font-bold border-b-2 border-primary" href="#">How it Works</a>
+<a class="text-on-surface-variant hover:text-primary font-body-md" href="#">Gallery</a>
+<a class="text-on-surface-variant hover:text-primary font-body-md" href="#">Community</a>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined cursor-pointer hover:rotate-12 transition-transform p-2 text-on-surface-variant">code</span>
+<span class="material-symbols-outlined cursor-pointer hover:rotate-12 transition-transform p-2 text-on-surface-variant">dark_mode</span>
+<button class="bg-primary text-on-primary font-label-bold text-label-bold px-6 py-2.5 rounded-full hard-drop-primary interactive-press transition-all hover:scale-105">
+                    Login
+                </button>
+</div>
+</nav>
+</header>
+<main class="relative z-10 max-w-container-max mx-auto px-margin-mobile md:px-gutter">
+<!-- Hero Section -->
+<section class="py-16 md:py-24 flex flex-col md:flex-row gap-16 items-center">
+<div class="flex-1 space-y-8">
+<div class="inline-block bg-tertiary-container text-on-tertiary-container px-4 py-1 rounded-full font-label-bold text-label-bold rotate-[-1deg]">
+                    FREE TO PLAY 🎨
+                </div>
+<h1 class="font-display-lg text-display-lg-mobile md:text-display-lg text-on-surface leading-none">
+                    Draw. Guess. <br/><span class="text-secondary italic">Laugh.</span>
+</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-lg">
+                    The online multiplayer drawing game where terrible art creates unforgettable moments. No fancy tools, just you and your mouse.
+                </p>
+<div class="flex flex-wrap gap-4 pt-4">
+<button class="bg-primary-container text-on-primary-container font-headline-md text-headline-md px-8 py-4 rounded-lg hard-drop-primary interactive-press transition-all hover:-rotate-1">
+                        Play as Guest
+                    </button>
+<button class="bg-surface border-2 border-on-surface text-on-surface font-headline-md text-headline-md px-8 py-4 rounded-lg hard-drop-secondary interactive-press transition-all hover:rotate-1">
+                        Login
+                    </button>
+</div>
+<p class="text-on-surface-variant text-body-md font-medium opacity-60">
+                    No account required to join a match.
+                </p>
+</div>
+<!-- Game Preview Illustration -->
+<div class="flex-1 relative w-full max-w-[500px]">
+<div class="bg-surface-container-highest p-6 rounded-lg border-2 border-on-surface hard-drop-tertiary rotate-2 relative overflow-hidden">
+<!-- Top Bar -->
+<div class="flex justify-between items-center mb-6">
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-error"></span>
+<span class="w-3 h-3 rounded-full bg-primary-container"></span>
+<span class="w-3 h-3 rounded-full bg-tertiary"></span>
+</div>
+<div class="bg-on-surface text-surface px-4 py-1 rounded-full font-label-bold flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">timer</span>
+                            56s
+                        </div>
+</div>
+<!-- Drawing Board -->
+<div class="bg-surface-container-lowest aspect-square sketch-border p-8 flex items-center justify-center relative bg-[radial-gradient(#d0c6ae_1px,transparent_1px)] [background-size:20px_20px]">
+<!-- Badly drawn cat -->
+<div class="w-48 h-48 relative">
+<img class="w-full h-full object-contain" data-alt="A charmingly bad, hand-drawn digital doodle of a cat on a grid background. The drawing uses thick, shaky black brushstrokes with accidental squiggles and asymmetrical ears. It looks humorous and amateur, fitting the fun, low-stakes vibe of a casual multiplayer drawing game. The lighting is flat and clean, prioritizing the doodle's playful character." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDrcy8nQTZZE8XG6l8i6Pg-DHHqGAlrT6A0gliECjJMkJvlmX4H201LDiz3dHkeApL1ycVkYuj5u5gPfWpuxs6Q1xRrHagpqveoomkLd3CjYYJJNOuzoMZnRj6OVz1biWmPXKnZN5eHpZ5GkSsUGczKor-qjki1MzARdxrU001FbwE-ylL16hs2jHLP_NlscjS2BljJpUzQ1_1f6C6oLtG08sJ1hp3mf5DfhTdKL0yKiuQRk8xS7jLlBsnzWd-GGlApNpmxRLWRBPaG"/>
+</div>
+<!-- Chat Bubbles -->
+<div class="absolute top-4 right-4 bg-secondary-container text-on-secondary-container p-3 rounded-2xl rounded-tr-none font-bold text-sm hard-drop-secondary -rotate-3">
+                            Is that a potato? 🥔
+                        </div>
+<div class="absolute bottom-10 left-4 bg-tertiary-container text-on-tertiary-container p-3 rounded-2xl rounded-bl-none font-bold text-sm hard-drop-tertiary rotate-3">
+                            No... it's a cat 😂
+                        </div>
+</div>
+<!-- Players -->
+<div class="flex justify-between mt-6">
+<div class="flex -space-x-2">
+<div class="w-10 h-10 rounded-full border-2 border-on-surface bg-primary-container overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A stylized, round 3D avatar of a playful person with bright colored hair and a big friendly smile, rendered in a clean, minimal claymation style. The background is a soft solid primary color. High contrast and modern gaming aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDCY6oVuCqUY5VHTc8jhWKHMIKiwg0DJHIIWWUvl6evAZkoWZf_QSf5Vs2_NCpu4DN24NSzuU1wLc68GZTkwGvNvku2xqv_oGihIG70olNgIeYptF53cwBgJcHDGjN6E1HGW5gsm7BztHgUBEhLyG0uEmrP5rzFOeeV7Pv15sFk32Cs0B5ipVur5V7L86uvaWVlQa-2ebPrBXypAar7W-im2mAsBGv5AiIQh6RyV3_PoeZG17YhF5UqBeOhgdOAg8H9lFVoKf-7TdpL"/>
+</div>
+<div class="w-10 h-10 rounded-full border-2 border-on-surface bg-secondary-container overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A stylized, round 3D avatar of a quirky character with oversized glasses and a cool beanie, rendered in a clean, minimal claymation style. The character radiates a fun and creative energy. High contrast and modern gaming aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBV1N9UsJHI6z8jlr6oOgReqMr4WrLUMTVVKTNqpc-eRpe6XHVAxc465nnHo1NL5MTW8ibuikhG4YcTBTZJBWW4ZucyloIwthlV7VcXkSG8bo4lFZwzOo8kJLv0loUhlJzAMPhj5vq1C0AkNj5PfhiINg-5iekukw-oxEjVhHORk_gmfJGUOOhO0ybCA4wf3ax-Z-VoGpj-sQzkZ8VDGOTsKcSQWjpDsEAWneTotmT_SNP6TouDqMDdKm3Md5Tg0N4sJ3ajCRYcQfKj"/>
+</div>
+<div class="w-10 h-10 rounded-full border-2 border-on-surface bg-tertiary-container flex items-center justify-center font-bold text-xs">+3</div>
+</div>
+<div class="bg-primary-container text-on-primary-container px-3 py-1 rounded-full font-label-bold text-xs border-2 border-on-surface">
+                            1,250 pts
+                        </div>
+</div>
+</div>
+</div>
+</section>
+<!-- Features Bento Section -->
+<section class="py-20">
+<div class="text-center mb-16">
+<h2 class="font-display-lg text-display-lg-mobile md:text-display-lg mb-4">Why DoodleDash?</h2>
+<div class="w-24 h-2 bg-primary-container mx-auto rounded-full"></div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<!-- Draw Card -->
+<div class="group bg-surface-container p-8 rounded-lg border-2 border-on-surface hard-drop-primary floating" style="animation-delay: 0s;">
+<div class="bg-primary-container w-16 h-16 rounded-2xl flex items-center justify-center mb-6 border-2 border-on-surface group-hover:rotate-12 transition-transform">
+<span class="material-symbols-outlined text-4xl text-on-primary-container" data-weight="fill">brush</span>
+</div>
+<h3 class="font-headline-md text-headline-md mb-2">Draw Anything</h3>
+<p class="text-on-surface-variant">Simple tools that let your imagination run wild. Whether you're a pro or can't draw a stick figure.</p>
+</div>
+<!-- Guess Card -->
+<div class="group bg-surface-container p-8 rounded-lg border-2 border-on-surface hard-drop-secondary floating" style="animation-delay: 0.5s;">
+<div class="bg-secondary-container w-16 h-16 rounded-2xl flex items-center justify-center mb-6 border-2 border-on-surface group-hover:-rotate-12 transition-transform">
+<span class="material-symbols-outlined text-4xl text-on-secondary-container" data-weight="fill">lightbulb</span>
+</div>
+<h3 class="font-headline-md text-headline-md mb-2">Guess Fast</h3>
+<p class="text-on-surface-variant">Type your answers as quick as you can. The faster you guess, the more points you rack up!</p>
+</div>
+<!-- Win Card -->
+<div class="group bg-surface-container p-8 rounded-lg border-2 border-on-surface hard-drop-tertiary floating" style="animation-delay: 1s;">
+<div class="bg-tertiary-container w-16 h-16 rounded-2xl flex items-center justify-center mb-6 border-2 border-on-surface group-hover:rotate-12 transition-transform">
+<span class="material-symbols-outlined text-4xl text-on-tertiary-container" data-weight="fill">emoji_events</span>
+</div>
+<h3 class="font-headline-md text-headline-md mb-2">Win Big</h3>
+<p class="text-on-surface-variant">Climb the leaderboard and unlock wacky avatars, badges, and exclusive custom drawing tools.</p>
+</div>
+</div>
+</section>
+<!-- How It Works Timeline -->
+<section class="py-20 bg-surface-container-low rounded-xl px-8 border-2 border-on-surface">
+<h2 class="font-display-lg text-display-lg-mobile md:text-display-lg text-center mb-16">Quick Start Guide</h2>
+<div class="relative flex flex-col md:flex-row justify-between items-start gap-8 md:gap-4">
+<!-- Timeline Line -->
+<div class="hidden md:block absolute top-10 left-0 w-full h-1 bg-outline-variant z-0"></div>
+<!-- Step 1 -->
+<div class="relative z-10 flex-1 text-center flex flex-col items-center">
+<div class="w-20 h-20 bg-surface-container-highest rounded-full flex items-center justify-center border-2 border-on-surface mb-4 group hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">meeting_room</span>
+</div>
+<span class="font-label-bold text-label-bold text-primary mb-2 uppercase tracking-widest">Step 1</span>
+<h4 class="font-headline-md text-headline-md mb-2">Create Room</h4>
+<p class="text-sm text-on-surface-variant">Set your rules and topic</p>
+</div>
+<!-- Step 2 -->
+<div class="relative z-10 flex-1 text-center flex flex-col items-center">
+<div class="w-20 h-20 bg-surface-container-highest rounded-full flex items-center justify-center border-2 border-on-surface mb-4 group hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">group_add</span>
+</div>
+<span class="font-label-bold text-label-bold text-secondary mb-2 uppercase tracking-widest">Step 2</span>
+<h4 class="font-headline-md text-headline-md mb-2">Invite Friends</h4>
+<p class="text-sm text-on-surface-variant">Send a link or join a public lobby</p>
+</div>
+<!-- Step 3 -->
+<div class="relative z-10 flex-1 text-center flex flex-col items-center">
+<div class="w-20 h-20 bg-surface-container-highest rounded-full flex items-center justify-center border-2 border-on-surface mb-4 group hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">edit</span>
+</div>
+<span class="font-label-bold text-label-bold text-tertiary mb-2 uppercase tracking-widest">Step 3</span>
+<h4 class="font-headline-md text-headline-md mb-2">Draw It</h4>
+<p class="text-sm text-on-surface-variant">Unleash your inner Picasso</p>
+</div>
+<!-- Step 4 -->
+<div class="relative z-10 flex-1 text-center flex flex-col items-center">
+<div class="w-20 h-20 bg-surface-container-highest rounded-full flex items-center justify-center border-2 border-on-surface mb-4 group hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">question_mark</span>
+</div>
+<span class="font-label-bold text-label-bold text-on-error-container mb-2 uppercase tracking-widest">Step 4</span>
+<h4 class="font-headline-md text-headline-md mb-2">Guess It</h4>
+<p class="text-sm text-on-surface-variant">Crack the code of the doodle</p>
+</div>
+<!-- Step 5 -->
+<div class="relative z-10 flex-1 text-center flex flex-col items-center">
+<div class="w-20 h-20 bg-primary-container rounded-full flex items-center justify-center border-2 border-on-surface mb-4 group hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">star</span>
+</div>
+<span class="font-label-bold text-label-bold text-on-primary-container mb-2 uppercase tracking-widest">Step 5</span>
+<h4 class="font-headline-md text-headline-md mb-2">Win!</h4>
+<p class="text-sm text-on-surface-variant">Celebrate your masterpiece</p>
+</div>
+</div>
+</section>
+<!-- Game Modes -->
+<section class="py-24">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<div class="bg-secondary-container/20 p-12 rounded-xl border-2 border-secondary group hover:bg-secondary-container/40 transition-colors cursor-pointer relative overflow-hidden">
+<div class="absolute -top-4 -right-4 bg-secondary text-on-primary p-4 rounded-full rotate-12">
+<span class="material-symbols-outlined">bolt</span>
+</div>
+<h3 class="font-headline-md text-headline-md mb-4 text-secondary">Quick Match</h3>
+<p class="text-on-surface-variant mb-6">Jump into a random room with players from around the world. Instant action.</p>
+<div class="flex items-center gap-2 font-bold text-secondary">
+                        Play Now <span class="material-symbols-outlined">arrow_forward</span>
+</div>
+</div>
+<div class="bg-primary-container/20 p-12 rounded-xl border-2 border-primary group hover:bg-primary-container/40 transition-colors cursor-pointer relative overflow-hidden">
+<div class="absolute -top-4 -right-4 bg-primary text-on-primary p-4 rounded-full -rotate-12">
+<span class="material-symbols-outlined">lock</span>
+</div>
+<h3 class="font-headline-md text-headline-md mb-4 text-primary">Private Room</h3>
+<p class="text-on-surface-variant mb-6">Create a password-protected space for you and your friends. No strangers allowed.</p>
+<div class="flex items-center gap-2 font-bold text-primary">
+                        Invite Friends <span class="material-symbols-outlined">arrow_forward</span>
+</div>
+</div>
+<div class="bg-tertiary-container/20 p-12 rounded-xl border-2 border-tertiary group hover:bg-tertiary-container/40 transition-colors cursor-pointer relative overflow-hidden">
+<div class="absolute -top-4 -right-4 bg-tertiary text-on-primary p-4 rounded-full rotate-6">
+<span class="material-symbols-outlined">settings_suggest</span>
+</div>
+<h3 class="font-headline-md text-headline-md mb-4 text-tertiary">Custom Lobby</h3>
+<p class="text-on-surface-variant mb-6">Tweak everything from round timers to word lists. The ultimate playground.</p>
+<div class="flex items-center gap-2 font-bold text-tertiary">
+                        Configure <span class="material-symbols-outlined">arrow_forward</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Bottom CTA -->
+<section class="mb-24">
+<div class="bg-on-surface text-surface rounded-xl p-12 md:p-20 text-center relative overflow-hidden">
+<div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:24px_24px]"></div>
+<h2 class="font-display-lg text-display-lg-mobile md:text-display-lg mb-8 relative z-10">Ready to prove your <br/>artistic genius?</h2>
+<div class="flex flex-col md:flex-row gap-4 justify-center relative z-10">
+<button class="bg-primary-container text-on-primary-container font-headline-md text-headline-md px-10 py-5 rounded-lg hard-drop-primary interactive-press transition-all">
+                        Start Playing
+                    </button>
+<button class="bg-transparent border-2 border-surface text-surface font-headline-md text-headline-md px-10 py-5 rounded-lg interactive-press transition-all hover:bg-surface/10">
+                        Create Private Room
+                    </button>
+</div>
+<div class="mt-8 flex justify-center items-center gap-4 text-surface-variant font-label-bold text-label-bold">
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> 2,401 Players Online</span>
+<span class="hidden md:inline">•</span>
+<span class="hidden md:inline">142 Active Games</span>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-surface-container-low border-t-2 border-on-surface py-12">
+<div class="max-w-container-max mx-auto px-margin-mobile flex flex-col md:flex-row justify-between items-center gap-gutter">
+<div class="flex items-center gap-2 font-label-bold text-label-bold uppercase tracking-widest text-on-surface">
+<span class="material-symbols-outlined text-2xl">edit</span>
+                DoodleDash
+            </div>
+<div class="flex gap-8 text-on-surface-variant font-body-md">
+<a class="hover:text-primary transition-colors" href="#">Privacy</a>
+<a class="hover:text-primary transition-colors" href="#">Terms</a>
+<a class="hover:text-primary transition-colors" href="#">Support</a>
+<a class="hover:text-primary transition-colors" href="#">Twitter</a>
+</div>
+<p class="text-on-surface-variant font-body-md opacity-70">
+                © 2024 DoodleDash. Let's get sketching!
+            </p>
+</div>
+</footer>
+<script>
+        // Simple entrance animations using Intersection Observer
+        const observerOptions = {
+            threshold: 0.1
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.remove('opacity-0', 'translate-y-10');
+                    entry.target.classList.add('opacity-100', 'translate-y-0');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('section').forEach(section => {
+            section.classList.add('transition-all', 'duration-1000', 'opacity-0', 'translate-y-10');
+            observer.observe(section);
+        });
+
+        // Toggle Dark Mode Simulation (UI only)
+        const themeToggle = document.querySelector('.material-symbols-outlined:contains("dark_mode")');
+        if(themeToggle) {
+            themeToggle.addEventListener('click', () => {
+                document.documentElement.classList.toggle('dark');
+            });
+        }
+    </script>
+</body></html>
