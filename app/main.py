@@ -16,7 +16,7 @@ app = FastAPI(title="Scribble.io Backend", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://scribble-io-3qfw.onrender.com",
+        "https://scribble-io-1-vlx3.onrender.com",
         "http://localhost:5173",
         "http://localhost:3000",
     ],
@@ -28,4 +28,3 @@ app.add_middleware(
 # Include Routers
 app.include_router(auth.router)
 app.include_router(ws.router)
-
