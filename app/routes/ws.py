@@ -163,7 +163,19 @@ async def handle_join_room(
     except RoomNotFound as exc:
         await _send_err(connection_id, exc.code, str(exc))
         return
-    except (AlreadyInRoom, RoomFull, InvalidRoomStatus) as exc:
+    except AlreadyInRoom:
+        # ponytail: rapid reload — old disconnect not yet processed, user is still
+        # "in" the room on the server. Just rebind the new connection and resume.
+        room = await room_manager.get_room(room_id)
+        if room is None:
+            await _send_err(connection_id, "ROOM_NOT_FOUND", "Room no longer exists.")
+            return
+        manager.rebind_connection(user_id, connection_id)
+        manager.bind_to_room(connection_id, room_id)
+        await manager.send(connection_id, _ok("room_joined", room=room.to_dict()))
+        logger.info("User '%s' already in room '%s', rebound connection.", user_id, room_id)
+        return
+    except (RoomFull, InvalidRoomStatus) as exc:
         await _send_err(connection_id, exc.code, str(exc))
         return
 
@@ -233,8 +245,19 @@ async def handle_rejoin_room(
     # Cancel the pending grace-period timer
     cancelled = disconnect_timer_service.cancel_timer(room_id)
     if not cancelled:
-        # Timer already expired — room should have been deleted above; if we
-        # somehow reach here anyway, reject cleanly.
+        # ponytail: race condition — new connection arrived before the old disconnect
+        # handler started the grace timer. If the room is still active (not PAUSED),
+        # just rebind the new connection; no resume needed.
+        if room.status in (RoomStatus.WAITING, RoomStatus.READY, RoomStatus.IN_PROGRESS):
+            manager.rebind_connection(user_id, connection_id)
+            manager.bind_to_room(connection_id, room_id)
+            await manager.send(connection_id, _ok("rejoined", room=room.to_dict()))
+            logger.info(
+                "Creator '%s' rejoined room '%s' before disconnect processed (status=%s).",
+                user_id, room_id, room.status.value,
+            )
+            return
+        # Timer actually expired
         await _send_err(
             connection_id,
             "ROOM_NOT_FOUND",

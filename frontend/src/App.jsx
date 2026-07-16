@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useNavigate, useLocation, Routes, Route, Navigate } from 'react-router-dom'
 import './App.css'
 import Canvas from './Canvas'
 import LandingPage from './Landing'
@@ -291,7 +292,8 @@ function MainGameLayout({
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
-function AuthScreen({ error, setError, setToken, setUsername, setScreen, setIsGuest, pushEvent }) {
+function AuthScreen({ error, setError, setToken, setUsername, setIsGuest, pushEvent }) {
+  const navigate = useNavigate()
   const [mode, setMode] = useState('login')
   const [form, setForm] = useState({ username: '', password: '', email: '' })
   // ponytail: seed from localStorage so returning guests keep their name
@@ -305,7 +307,7 @@ function AuthScreen({ error, setError, setToken, setUsername, setScreen, setIsGu
         const d = await apiPost('/auth/login', { username: form.username, password: form.password })
         localStorage.setItem('token', d.access_token)
         localStorage.setItem('username', form.username)
-        setToken(d.access_token); setUsername(form.username); setIsGuest(false); setScreen('lobby')
+        setToken(d.access_token); setUsername(form.username); setIsGuest(false); navigate('/lobby')
       } else {
         await apiJson('/auth/register', form)
         setMode('login')
@@ -323,7 +325,7 @@ function AuthScreen({ error, setError, setToken, setUsername, setScreen, setIsGu
     // ponytail: no token, just set nickname — WS will connect with ?nickname=
     localStorage.removeItem('token')
     localStorage.setItem('guestNick', nick)
-    setToken(''); setUsername(nick); setIsGuest(true); setScreen('lobby')
+    setToken(''); setUsername(nick); setIsGuest(true); navigate('/lobby')
   }
 
   return (
@@ -453,11 +455,12 @@ function AuthScreen({ error, setError, setToken, setUsername, setScreen, setIsGu
   )
 }
 
-function LobbyScreen({ error, setError, username, isGuest, send, setToken, setUsername, setIsGuest, setScreen }) {
+function LobbyScreen({ error, setError, username, isGuest, send, setToken, setUsername, setIsGuest }) {
+  const navigate = useNavigate()
   const [joinId, setJoinId] = useState('')
 
   const leave = () => {
-    localStorage.clear(); setToken(''); setUsername(''); setIsGuest(false); setScreen('auth')
+    localStorage.clear(); setToken(''); setUsername(''); setIsGuest(false); navigate('/auth')
   }
 
   return (
@@ -473,7 +476,7 @@ function LobbyScreen({ error, setError, username, isGuest, send, setToken, setUs
       {/* Navbar */}
       <header className="lobby-nav">
         <nav className="lobby-nav-inner" aria-label="Lobby navigation">
-          <div className="lobby-logo">
+          <div className="lobby-logo" onClick={() => navigate('/')} style={{cursor:'pointer'}}>
             <span className="material-symbols-outlined" style={{fontSize:28,color:'var(--dd-primary)'}}>edit</span>
             <span>DoodleDash</span>
           </div>
@@ -634,7 +637,8 @@ const CHAIR_POSITIONS = [
 
 const AVATAR_COLORS = PLAYER_COLORS
 
-function RoomScreen({ room, error, isCreator, send, setRoom, setScreen, username }) {
+function RoomScreen({ room, error, isCreator, send, setRoom, username }) {
+  const navigate = useNavigate()
   const ready = room?.status === 'ready'
   const code = room?.room_id || ''
   const players = room?.players || []
@@ -652,7 +656,14 @@ function RoomScreen({ room, error, isCreator, send, setRoom, setScreen, username
     send('start_game', { rounds, draw_time: drawTime })
   }
 
-  const leaveRoom = () => { send('leave_room'); setRoom(null); setScreen('lobby') }
+  const leaveRoom = () => {
+    send('leave_room')
+    setRoom(null)
+    // ponytail: clear persisted room so reload goes to lobby, not back to this room
+    localStorage.removeItem('roomId')
+    localStorage.removeItem('roomCreator')
+    navigate('/lobby')
+  }
 
   // Format seconds to display string
   const fmtTime = (s) => s >= 60 ? `${Math.floor(s/60)}m ${s%60 ? s%60 + 's' : ''}`.trim() : `${s}s`
@@ -669,7 +680,7 @@ function RoomScreen({ room, error, isCreator, send, setRoom, setScreen, username
       {/* Nav */}
       <nav className="wr-nav" aria-label="Waiting room navigation">
         <div className="wr-nav-inner">
-          <div className="wr-nav-brand">
+          <div className="wr-nav-brand" onClick={() => navigate('/')} style={{cursor:'pointer'}}>
             <span className="material-symbols-outlined" style={{fontSize:28,color:'var(--dd-primary)'}}>draw</span>
             <span>DoodleDash</span>
           </div>
@@ -888,6 +899,7 @@ function GameScreen({
   gamePhase, roundNum, totalRounds, timer, events,
   candidates, setCandidates, hostId, wrongMsg, setWrongMsg,
 }) {
+  const navigate = useNavigate()
   const isDrawer = drawerID === username
 
   // Drawing tool state — lives here so it persists across re-renders
@@ -919,7 +931,12 @@ function GameScreen({
         gamePhase={gamePhase} roundNum={roundNum} totalRounds={totalRounds}
         timer={timer}
         onSkip={() => send('skip')}
-        onLeave={() => { send('leave_room'); window.location.reload() }}
+        onLeave={() => {
+          send('leave_room')
+          localStorage.removeItem('roomId')
+          localStorage.removeItem('roomCreator')
+          navigate('/lobby')
+        }}
         wrongMsg={wrongMsg} setWrongMsg={setWrongMsg}
         brushColor={brushColor} setBrushColor={setBrushColor}
         brushSize={brushSize} setBrushSize={setBrushSize}
@@ -972,7 +989,8 @@ function GameScreen({
 
 // ── Game over ────────────────────────────────────────────────────────────────
 
-function GameOverScreen({ finalResult, error, username, setFinalResult, setScreen, setRoom }) {
+function GameOverScreen({ finalResult, error, username, setFinalResult, setRoom }) {
+  const navigate = useNavigate()
   const { scores: s, winner } = finalResult || {}
   return (
     <div className="gm-page" style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh'}}>
@@ -1001,7 +1019,13 @@ function GameOverScreen({ finalResult, error, username, setFinalResult, setScree
         <button
           className="gm-btn-next"
           style={{marginTop:16,width:'100%'}}
-          onClick={() => { setFinalResult(null); setScreen('lobby'); setRoom(null) }}
+          onClick={() => {
+            setFinalResult(null)
+            setRoom(null)
+            localStorage.removeItem('roomId')
+            localStorage.removeItem('roomCreator')
+            navigate('/lobby')
+          }}
         >
           🎨 Play Again
         </button>
@@ -1014,14 +1038,14 @@ function GameOverScreen({ finalResult, error, username, setFinalResult, setScree
 
 
 export default function App() {
+  const navigate = useNavigate()
+  const location = useLocation()
+
   // Auth
   const [token,    setToken]    = useState(() => localStorage.getItem('token') || '')
   const [username, setUsername] = useState(() => localStorage.getItem('username') || localStorage.getItem('guestNick') || '')
   const [isGuest,  setIsGuest]  = useState(() => !localStorage.getItem('token') && !!localStorage.getItem('guestNick'))
 
-  // Screens: welcome | auth | lobby | room | game | game_over
-  // ponytail: welcome is the landing page, shown only when no session exists
-  const [screen, setScreen] = useState(token || isGuest ? 'lobby' : 'welcome')
   const [error,  setError]  = useState('')
 
   // Room state
@@ -1083,16 +1107,34 @@ export default function App() {
       case 'connected':
         // Server confirms identity — update username if server assigned differently
         if (data.user_id) setUsername(data.user_id)
+        // ponytail: auto-rejoin here (not onopen) so the server has had time to
+        // process the previous connection's disconnect before we request rejoin.
+        {
+          const savedRoom = localStorage.getItem('roomId')
+          const wasCreator = localStorage.getItem('roomCreator') === '1'
+          if (savedRoom && wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify(
+              wasCreator
+                ? { event: 'rejoin_room', data: { room_id: savedRoom } }
+                : { event: 'join_room',   data: { room_id: savedRoom } }
+            ))
+          }
+        }
         break
 
       // Room events
       case 'room_created':
       case 'room_joined':
-      case 'rejoined':
+      case 'rejoined': {
+        const isCreatorEvent = event === 'room_created'
         setRoom(data.room)
-        setIsCreator(event === 'room_created')
-        setScreen('room')
+        setIsCreator(isCreatorEvent)
+        // ponytail: persist room so reload auto-rejoins instead of losing state
+        localStorage.setItem('roomId', data.room.room_id)
+        localStorage.setItem('roomCreator', isCreatorEvent ? '1' : '0')
+        navigate('/room')
         break
+      }
 
       case 'player_joined':
         setRoom(data.room)
@@ -1110,8 +1152,11 @@ export default function App() {
         break
 
       case 'room_closed':
-        setRoom(null); setScreen('lobby')
+        setRoom(null)
+        localStorage.removeItem('roomId')
+        localStorage.removeItem('roomCreator')
         setError('Room was closed.')
+        navigate('/lobby')
         break
 
       case 'opponent_reconnecting':
@@ -1125,9 +1170,9 @@ export default function App() {
       // Game events
       case 'game_started':
         setScores(data.scores)
-        setScreen('game')
         setGamePhase('waiting')
         pushEvent('Game started!', 'system')
+        navigate('/game')
         break
 
       case 'round_started':
@@ -1189,80 +1234,99 @@ export default function App() {
 
       case 'game_over':
         setFinalResult(data)
-        setScreen('game_over')
+        navigate('/game-over')
         break
 
-      case 'error':
+      case 'error': {
         setError(`${data.code}: ${data.message}`)
+        // ponytail: stale roomId causes a reload loop — clear it on any room error
+        // so the next reload goes to lobby instead of trying to rejoin a dead room.
+        const ROOM_ERRORS = new Set(['ROOM_NOT_FOUND', 'NOT_IN_ROOM', 'USE_JOIN_ROOM', 'INVALID_STATUS'])
+        if (ROOM_ERRORS.has(data.code) && localStorage.getItem('roomId')) {
+          localStorage.removeItem('roomId')
+          localStorage.removeItem('roomCreator')
+          navigate('/lobby')
+        }
         break
+      }
 
       default:
         console.log('Unhandled event:', event, data)
     }
   }
 
+  // ── Determine default route ──────────────────────────────────────────────
+  const authed = token || isGuest
+
   // ── Route ───────────────────────────────────────────────────────────────
-  // Conditional rendering — all screen components are stable module-level
-  // references, so React will never unmount+remount them spuriously.
-  if (screen === 'welcome') {
-    return (
-      <LandingPage
-        onPlayGuest={() => setScreen('auth')}
-        onLogin={() => setScreen('auth')}
-      />
-    )
-  }
-
-  if (screen === 'auth') {
-    return (
-      <AuthScreen
-        error={error} setError={setError}
-        setToken={setToken} setUsername={setUsername} setIsGuest={setIsGuest} setScreen={setScreen}
-        pushEvent={pushEvent}
-      />
-    )
-  }
-
-  if (screen === 'lobby') {
-    return (
-      <LobbyScreen
-        error={error} setError={setError}
-        username={username} isGuest={isGuest} send={send}
-        setToken={setToken} setUsername={setUsername} setIsGuest={setIsGuest} setScreen={setScreen}
-      />
-    )
-  }
-
-  if (screen === 'room') {
-    return (
-      <RoomScreen
-        room={room} error={error} isCreator={isCreator}
-        send={send} setRoom={setRoom} setScreen={setScreen}
-        username={username}
-      />
-    )
-  }
-
-  if (screen === 'game_over') {
-    return (
-      <GameOverScreen
-        finalResult={finalResult} error={error} username={username}
-        setFinalResult={setFinalResult} setScreen={setScreen} setRoom={setRoom}
-      />
-    )
-  }
-
-  // Default: game screen
+  // All screen components are stable module-level references.
   return (
-    <GameScreen
-      drawerID={drawerID} username={username} send={send}
-      guess={guess} setGuess={setGuess}
-      remoteStrokes={remoteStrokes} scores={scores}
-      word={word} wordLength={wordLength}
-      gamePhase={gamePhase} roundNum={roundNum} totalRounds={totalRounds}
-      timer={timer} events={events}
-      candidates={candidates} setCandidates={setCandidates}
-      hostId={hostId} wrongMsg={wrongMsg} setWrongMsg={setWrongMsg}
-    />
+    <Routes>
+      <Route path="/" element={
+        <LandingPage
+          onPlayGuest={() => navigate('/auth')}
+          onLogin={() => navigate('/auth')}
+        />
+      } />
+
+      <Route path="/auth" element={
+        authed ? <Navigate to="/lobby" replace /> : (
+          <AuthScreen
+            error={error} setError={setError}
+            setToken={setToken} setUsername={setUsername} setIsGuest={setIsGuest}
+            pushEvent={pushEvent}
+          />
+        )
+      } />
+
+      <Route path="/lobby" element={
+        !authed ? <Navigate to="/auth" replace /> : (
+          <LobbyScreen
+            error={error} setError={setError}
+            username={username} isGuest={isGuest} send={send}
+            setToken={setToken} setUsername={setUsername} setIsGuest={setIsGuest}
+          />
+        )
+      } />
+
+      <Route path="/room" element={
+        !authed ? <Navigate to="/auth" replace /> : (
+          <RoomScreen
+            room={room} error={error} isCreator={isCreator}
+            send={send} setRoom={setRoom}
+            username={username}
+          />
+        )
+      } />
+
+      <Route path="/game" element={
+        !authed ? <Navigate to="/auth" replace /> : (
+          <GameScreen
+            drawerID={drawerID} username={username} send={send}
+            guess={guess} setGuess={setGuess}
+            remoteStrokes={remoteStrokes} scores={scores}
+            word={word} wordLength={wordLength}
+            gamePhase={gamePhase} roundNum={roundNum} totalRounds={totalRounds}
+            timer={timer} events={events}
+            candidates={candidates} setCandidates={setCandidates}
+            hostId={hostId} wrongMsg={wrongMsg} setWrongMsg={setWrongMsg}
+          />
+        )
+      } />
+
+      <Route path="/game-over" element={
+        !authed ? <Navigate to="/auth" replace /> : (
+          <GameOverScreen
+            finalResult={finalResult} error={error} username={username}
+            setFinalResult={setFinalResult} setRoom={setRoom}
+          />
+        )
+      } />
+
+      {/* Fallback: send authed users to lobby, others to landing */}
+      <Route path="*" element={
+        authed ? <Navigate to="/lobby" replace /> : <Navigate to="/" replace />
+      } />
+    </Routes>
   )
 }
