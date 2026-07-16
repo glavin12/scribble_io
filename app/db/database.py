@@ -3,7 +3,12 @@ from sqlalchemy.orm import declarative_base
 from app.core.config import settings
 
 # Accept plain postgresql:// URLs (e.g. from Neon) — swap to asyncpg driver
-_db_url = settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+# asyncpg uses 'ssl' not 'sslmode'
+_db_url = (
+    settings.DATABASE_URL
+    .replace("postgresql://", "postgresql+asyncpg://", 1)
+    .replace("sslmode=", "ssl=")
+)
 engine = create_async_engine(_db_url, echo=True)
 
 AsyncSessionLocal = async_sessionmaker(
