@@ -4,9 +4,11 @@ import Canvas from './Canvas'
 import LandingPage from './Landing'
 
 // ── API helpers ─────────────────────────────────────────────────────────────
+const API_BASE = import.meta.env.PROD ? 'https://scribble-io-3qfw.onrender.com' : ''
+const WS_BASE  = import.meta.env.PROD ? 'wss://scribble-io-3qfw.onrender.com'  : `ws://${location.host}`
 
 async function apiPost(path, body) {
-  const r = await fetch(path, {
+  const r = await fetch(`${API_BASE}${path}`, {
     method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams(body),
   })
@@ -15,7 +17,7 @@ async function apiPost(path, body) {
 }
 
 async function apiJson(path, body, token) {
-  const r = await fetch(path, {
+  const r = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(body),
@@ -1062,7 +1064,7 @@ export default function App() {
     if (!token && !isGuest) return
     // ponytail: logged-in uses ?token=, guest uses ?nickname=
     const params = token ? `token=${token}` : `nickname=${encodeURIComponent(username)}`
-    const ws = new WebSocket(`ws://${location.host}/ws/?${params}`)
+    const ws = new WebSocket(`${WS_BASE}/ws/?${params}`)
     wsRef.current = ws
 
     ws.onmessage = ({ data: raw }) => {
