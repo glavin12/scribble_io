@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>DoodleDash | Core Gameplay</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300..700&amp;family=Nunito+Sans:ital,wght@0,200..1000;1,200..1000&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .canvas-texture {
+            background-image: url("https://www.transparenttextures.com/patterns/paper-fibers.png");
+        }
+        .hard-shadow {
+            box-shadow: 4px 4px 0px 0px rgba(31, 27, 18, 1);
+        }
+        .hard-shadow-sm {
+            box-shadow: 2px 2px 0px 0px rgba(31, 27, 18, 1);
+        }
+        .active-press:active {
+            transform: translate(2px, 2px);
+            box-shadow: 0px 0px 0px 0px rgba(31, 27, 18, 1);
+        }
+        @keyframes float {
+            0% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(5deg); }
+            100% { transform: translateY(0px) rotate(0deg); }
+        }
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-primary": "#ffffff",
+                      "tertiary": "#006d3d",
+                      "surface-dim": "#e1d9cb",
+                      "on-secondary-fixed": "#001e2f",
+                      "primary-fixed": "#ffe087",
+                      "inverse-on-surface": "#f8f0e1",
+                      "on-primary-container": "#735c00",
+                      "on-error-container": "#93000a",
+                      "inverse-surface": "#343026",
+                      "on-error": "#ffffff",
+                      "tertiary-fixed-dim": "#60de94",
+                      "tertiary-fixed": "#7efbae",
+                      "primary-fixed-dim": "#ebc23e",
+                      "inverse-primary": "#ebc23e",
+                      "surface-container": "#f6edde",
+                      "on-primary-fixed": "#241a00",
+                      "primary": "#735c00",
+                      "on-background": "#1f1b12",
+                      "error": "#ba1a1a",
+                      "secondary-container": "#7bc9ff",
+                      "secondary": "#006491",
+                      "outline-variant": "#d0c6ae",
+                      "on-tertiary-fixed": "#00210f",
+                      "on-secondary-container": "#00547a",
+                      "surface-container-high": "#f0e7d9",
+                      "on-secondary-fixed-variant": "#004b6f",
+                      "background": "#fff8f0",
+                      "on-primary-fixed-variant": "#574500",
+                      "on-tertiary": "#ffffff",
+                      "tertiary-container": "#74f1a5",
+                      "primary-container": "#ffd54f",
+                      "surface-container-highest": "#eae2d3",
+                      "on-surface": "#1f1b12",
+                      "surface": "#fff8f0",
+                      "surface-tint": "#735c00",
+                      "surface-bright": "#fff8f0",
+                      "secondary-fixed-dim": "#8aceff",
+                      "error-container": "#ffdad6",
+                      "on-tertiary-container": "#006d3e",
+                      "on-tertiary-fixed-variant": "#00522d",
+                      "on-secondary": "#ffffff",
+                      "surface-variant": "#eae2d3",
+                      "surface-container-lowest": "#ffffff",
+                      "outline": "#7f7662",
+                      "on-surface-variant": "#4d4634",
+                      "surface-container-low": "#fbf3e4",
+                      "secondary-fixed": "#c9e6ff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "1rem",
+                      "lg": "2rem",
+                      "xl": "3rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "unit": "8px",
+                      "margin-mobile": "16px",
+                      "container-max": "1200px",
+                      "asymmetric-offset": "12px",
+                      "gutter": "24px"
+              },
+              "fontFamily": {
+                      "display-lg": ["Quicksand"],
+                      "headline-md": ["Quicksand"],
+                      "body-lg": ["Nunito Sans"],
+                      "body-md": ["Nunito Sans"],
+                      "label-bold": ["Nunito Sans"],
+                      "display-lg-mobile": ["Quicksand"]
+              },
+              "fontSize": {
+                      "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "700"}],
+                      "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "500"}],
+                      "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                      "label-bold": ["14px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "800"}],
+                      "display-lg-mobile": ["32px", {"lineHeight": "1.2", "fontWeight": "700"}]
+              }
+            },
+          },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen overflow-hidden selection:bg-primary-container selection:text-on-primary-container">
+<!-- Atmospheric Background Doodles -->
+<div class="fixed inset-0 pointer-events-none z-0 overflow-hidden opacity-20">
+<span class="material-symbols-outlined absolute text-[120px] top-20 left-10 text-primary-container animate-float" style="animation-delay: 0s;">brush</span>
+<span class="material-symbols-outlined absolute text-[80px] bottom-40 right-20 text-secondary-container animate-float" style="animation-delay: 1s;">palette</span>
+<span class="material-symbols-outlined absolute text-[100px] top-1/2 left-1/4 text-tertiary-container animate-float" style="animation-delay: 2s;">category</span>
+<span class="material-symbols-outlined absolute text-[90px] bottom-20 left-1/2 text-error-container animate-float" style="animation-delay: 1.5s;">edit</span>
+</div>
+<!-- Top Navigation Bar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-gutter h-20 bg-background border-b-2 border-on-background shadow-[4px_4px_0px_0px_rgba(115,92,0,1)]">
+<div class="flex items-center gap-6">
+<div class="font-headline-md text-headline-md text-primary border-2 border-on-background px-4 py-1 rounded-xl bg-surface hover:rotate-1 hover:scale-105 transition-transform active:translate-x-[2px] active:translate-y-[2px] cursor-pointer">
+                DoodleDash
+            </div>
+<div class="hidden md:flex flex-col">
+<span class="font-label-bold text-label-bold text-outline uppercase">Current Game</span>
+<span class="font-headline-md text-headline-md">Round 3/8</span>
+</div>
+</div>
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-3 bg-surface-container-high px-4 py-2 rounded-full border-2 border-on-background hard-shadow-sm">
+<span class="font-label-bold text-label-bold text-on-surface-variant">CATEGORY:</span>
+<span class="font-headline-md text-headline-md text-secondary">Fruit</span>
+</div>
+<!-- Countdown Timer -->
+<div class="relative w-14 h-14 flex items-center justify-center bg-primary-container border-2 border-on-background rounded-full hard-shadow-sm">
+<svg class="absolute inset-0 w-full h-full -rotate-90">
+<circle class="text-on-primary-container/20" cx="28" cy="28" fill="transparent" r="24" stroke="currentColor" stroke-width="4"></circle>
+<circle class="text-on-primary-container transition-all duration-1000" cx="28" cy="28" fill="transparent" r="24" stroke="currentColor" stroke-dasharray="150" stroke-dashoffset="30" stroke-linecap="round" stroke-width="4"></circle>
+</svg>
+<span class="font-headline-md text-headline-md relative z-10">45</span>
+</div>
+</div>
+<button class="flex items-center gap-2 bg-error text-on-error px-6 py-2 rounded-xl font-headline-md border-2 border-on-background active-press hard-shadow transition-all hover:-rotate-1">
+<span class="material-symbols-outlined">logout</span>
+            Leave
+        </button>
+</header>
+<!-- Main Game Layout -->
+<main class="pt-20 h-screen flex relative z-10">
+<!-- Left Sidebar: Player List -->
+<aside class="w-64 border-r-2 border-on-background bg-surface-container flex flex-col p-4 gap-4 overflow-y-auto">
+<div class="flex flex-col gap-2">
+<h3 class="font-label-bold text-label-bold text-outline px-2">PLAYERS</h3>
+<!-- Active User (Drawing) -->
+<div class="bg-primary-container text-on-primary-container p-3 rounded-lg border-2 border-on-background flex items-center gap-3 hard-shadow-sm">
+<div class="relative">
+<img class="w-10 h-10 rounded-full border-2 border-on-background bg-white" data-alt="A whimsical, 3D clay-style avatar of a person wearing a yellow artist's beret and oversized glasses. The lighting is soft and colorful, with a slight rim light effect. The background is a vibrant solid teal. High quality digital illustration." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBYv3TA_Sc-s6qCZKLZjpAOE0VaKdBjMQ2HuxI-poQgWBzpxqHsC98YmBakr1xVBWse3_r_QXNsKom9zFP5_ir2T2dMdgAoc0_yAKYu9SGO2kLV6ysHIXGCV5D-t0HkoKTYCOnuc4o7i-9saYak0TAKBdQmrB3_EuhAj7N3XPekQUnynH9hajnwfyOudVKyhQsViKgmIr3s269F4Ds8wipocznzcNIbLmf7KI29CrnCYfUGxA0MfLvmpCZ8SYWqvEr-x7nxYyxVwOgP"/>
+<div class="absolute -bottom-1 -right-1 bg-tertiary text-white text-[10px] p-0.5 rounded-full border border-on-background">
+<span class="material-symbols-outlined text-[12px]" style="font-variation-settings: 'FILL' 1;">edit</span>
+</div>
+</div>
+<div class="flex flex-col leading-tight">
+<span class="font-label-bold truncate">You (🎨 Drawing)</span>
+<span class="text-xs font-bold">1,420 pts</span>
+</div>
+</div>
+<!-- Other Players -->
+<div class="bg-surface-container-low p-3 rounded-lg border-2 border-on-background flex items-center gap-3 opacity-90">
+<img class="w-10 h-10 rounded-full border-2 border-on-background bg-white" data-alt="A friendly 3D cartoon avatar of a cat wearing headphones, rendered in a soft aesthetic with pastel purple lighting. The style is modern and clean, similar to premium mobile game art. Solid light background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD_xgg-ASW2eVjIzmW4CWimR97HB1M1VLbZbPeGzjIgi9aaSl6Uc5IeNVtQoK-tKjIyMNnTW9oRiiDyU8Dl2GhwWEIZTwqn3D3PmUxcm3_tHiqw4ak0IVImA1yVprPmSeKka5UjKII-XQ4S09huF2RbZXHz7Q0eMvxqbbzJu3-pieuh7qa-uG7aLoKM5Var16SAwgxdSTfwnFzyJGgdjwU7Vq8E1UgOxq-HuzUe5zuuBcywQjlTkQsOxKNvfmnC02-V9DGJuW_FFBYF"/>
+<div class="flex flex-col leading-tight">
+<span class="font-label-bold truncate">PurrfectDraw</span>
+<span class="text-xs text-on-surface-variant">1,210 pts</span>
+</div>
+</div>
+<div class="bg-surface-container-low p-3 rounded-lg border-2 border-on-background flex items-center gap-3 opacity-90">
+<img class="w-10 h-10 rounded-full border-2 border-on-background bg-white" data-alt="A stylized 3D avatar of a young woman with neon green hair and a techwear aesthetic. Bright, high-contrast studio lighting, sharp details, vibrant colors. Minimalist background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuClYSW3opIGofvQ86cRuTA40bBoqb17ddyDGsCuwjJWnZ681GvCDZxaEelSzsEWBa3K__pNHFQ0KmH0YMkjTXZ92u9TSU5qNnroLDbOb6j1IkEHMJbmuIykIlmKFdnqe5MXJtuy4BYSSxcBXvN4Agr_cqfnRSSVdaCpA3pERoMdgwXrL12Jrd3V-DPMmJtpGiamYHXXd2e7bAKhqH3ot_X2vhD9UBeBwFdO26c5JELj5NtI1tDRcSLCT4E6RipwMg5PFQGG2MN3nL_C"/>
+<div class="flex flex-col leading-tight">
+<span class="font-label-bold truncate">GreenGhost</span>
+<span class="text-xs text-on-surface-variant">980 pts</span>
+</div>
+</div>
+<div class="bg-surface-container-low p-3 rounded-lg border-2 border-on-background flex items-center gap-3 opacity-90">
+<img class="w-10 h-10 rounded-full border-2 border-on-background bg-white" data-alt="A charming, chunky 3D toy-style robot avatar with glowing blue eyes. The material looks like smooth matte plastic. Soft global illumination, playful vibe. Minimal blue background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAIlYoS2KoPVdBsspRxstYfMfkwioXTdS2Sz7DlgdEUhch0a7lRNVtBldcCIZJ_pXttUzI_TAKipNFLaR1ooJrNIHPKOhrkA8-5UnmqNK3_47zwIVQocoOzdlqe68n2w1SzZ_uXsh5NmAf5oVTOArfDyBRobt285_bj7mp3LEQaRlxVDWCIjUltOZ0L1CL4UVqJZz4dSyt5L1zYvEZiU9D4aJ30JArF7QwtlLEQgjnD9sQIrCoD6XV43eCTftNhCTpk64rKj3HcPiSk"/>
+<div class="flex flex-col leading-tight">
+<span class="font-label-bold truncate">BotGogh</span>
+<span class="text-xs text-on-surface-variant">850 pts</span>
+</div>
+</div>
+<div class="bg-surface-container-low p-3 rounded-lg border-2 border-on-background flex items-center gap-3 opacity-90">
+<img class="w-10 h-10 rounded-full border-2 border-on-background bg-white" data-alt="A cute 3D Shiba Inu avatar wearing a detective hat, rendered in a warm, sunny lighting style. Playful, high-detail texture on the fur. Cheerful and inviting aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBjDv6gp9yK-1rSW_R4uXQy2hAFzbsmEO0aCyn60KwpJdJIAoPk_APa56C5lWJbbv_gVcY4bmV0eq3D5tm4W7vrjW2Q8lyd309qlcmeZ57R84ohO7QhvtuEc5neo7U35rFIqccdcMLvPzNdDRsiBOZiqJVS5iX62TiAaiUZy_EN9JqdIvNw60LTiYS6HOWKYjj1IrzbKRrSHOODRhLtAX5hdPluE6pyIuYkHQT2WSGhGz_P6la4AjVzA00RfkwQAD3_Wn7dtWy3I1nH"/>
+<div class="flex flex-col leading-tight">
+<span class="font-label-bold truncate">DogeDraws</span>
+<span class="text-xs text-on-surface-variant">740 pts</span>
+</div>
+</div>
+<div class="bg-surface-container-low p-3 rounded-lg border-2 border-on-background flex items-center gap-3 opacity-90">
+<img class="w-10 h-10 rounded-full border-2 border-on-background bg-white" data-alt="An edgy, 3D stylized avatar of a person with a mohawk and sunglasses, wearing a leather jacket. Urban lighting with purple and pink neon highlights. Creative gaming aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBoZsdSPFZeD5i4N9c9_dXwuCl-H8jV2TGa0BMmhxlMGyntPNwEk2EXUGHGhIiol1epc2C8k8iCYarLFzndIAdcEvW83ljmX2a7d-iq69eW2F61iZjt2XdEBHv4Id1cvzEhyTlJPFtuU_whrpCaZiNdPvNtIFRtWI7bZlUF09-y4Jj5fjTnW82os7bmmm9Lm3IU5Fk_hl26-Xscu92wS3WKvhhKUVjNEo5utCYKHAFY5rTuBLcYgEU4DsiPDCZPKsk1p2k4duA__5sE"/>
+<div class="flex flex-col leading-tight">
+<span class="font-label-bold truncate">PixelPunk</span>
+<span class="text-xs text-on-surface-variant">420 pts</span>
+</div>
+</div>
+</div>
+<div class="mt-auto">
+<button class="w-full bg-secondary text-on-secondary px-4 py-3 rounded-xl font-label-bold border-2 border-on-background active-press hard-shadow-sm flex items-center justify-center gap-2">
+<span class="material-symbols-outlined">person_add</span>
+                    Invite Friends
+                </button>
+</div>
+</aside>
+<!-- Center: Drawing Area -->
+<section class="flex-1 flex flex-col p-gutter gap-gutter bg-surface-container-low w-full">
+<!-- Game Instructions Header -->
+<div class="flex justify-between items-end">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-3">
+<h2 class="font-display-lg text-4xl text-primary">Secret Word: <span class="bg-primary-container px-3 py-1 rounded-lg border-2 border-on-background">APPLE</span></h2>
+<span class="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-xs font-label-bold border border-on-background">CATEGORY: FRUIT</span>
+</div>
+<p class="text-on-surface-variant font-body-md italic">Draw the word without using letters, numbers, or symbols.</p>
+</div>
+<div class="flex gap-2">
+<button class="p-2 bg-white border-2 border-on-background rounded-lg hard-shadow-sm active-press hover:bg-surface-container">
+<span class="material-symbols-outlined">undo</span>
+</button>
+<button class="p-2 bg-white border-2 border-on-background rounded-lg hard-shadow-sm active-press hover:bg-surface-container">
+<span class="material-symbols-outlined">redo</span>
+</button>
+<button class="p-2 bg-error-container text-on-error-container border-2 border-on-background rounded-lg hard-shadow-sm active-press hover:bg-error/10">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+</div>
+<!-- Canvas -->
+<div class="flex-1 bg-white rounded-xl border-4 border-on-background hard-shadow canvas-texture relative overflow-hidden cursor-crosshair">
+<!-- In a real app, this would be a <canvas> element -->
+<div class="absolute inset-0 flex items-center justify-center opacity-5 select-none pointer-events-none">
+<span class="material-symbols-outlined text-[300px]">gesture</span>
+</div>
+</div>
+<!-- Toolbar -->
+<div class="bg-surface border-2 border-on-background rounded-2xl p-4 flex flex-wrap items-center justify-between hard-shadow-sm gap-4">
+<!-- Drawing Tools -->
+<div class="flex items-center gap-2">
+<button class="p-3 bg-primary-container border-2 border-on-background rounded-xl active-press" title="Pencil">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">edit</span>
+</button>
+<button class="p-3 hover:bg-surface-container border-2 border-transparent rounded-xl transition-all" title="Brush">
+<span class="material-symbols-outlined">brush</span>
+</button>
+<button class="p-3 hover:bg-surface-container border-2 border-transparent rounded-xl transition-all" title="Fill">
+<span class="material-symbols-outlined">format_color_fill</span>
+</button>
+<button class="p-3 hover:bg-surface-container border-2 border-transparent rounded-xl transition-all" title="Eraser">
+<span class="material-symbols-outlined">ink_eraser</span>
+</button>
+</div>
+<div class="h-10 w-[2px] bg-outline-variant mx-2"></div>
+<!-- Size Slider -->
+<div class="flex items-center gap-4 flex-1 max-w-xs">
+<span class="material-symbols-outlined text-sm">circle</span>
+<input class="flex-1 accent-primary" max="50" min="1" type="range" value="10"/>
+<span class="material-symbols-outlined text-xl">circle</span>
+</div>
+<div class="h-10 w-[2px] bg-outline-variant mx-2"></div>
+<!-- Color Palette -->
+<div class="flex items-center gap-2 flex-wrap">
+<button class="w-8 h-8 rounded-full border-2 border-on-background bg-black active-press scale-110 shadow-inner"></button>
+<button class="w-8 h-8 rounded-full border-2 border-on-background bg-white active-press"></button>
+<button class="w-8 h-8 rounded-full border-2 border-on-background bg-gray-500 active-press"></button>
+<button class="w-8 h-8 rounded-full border-2 border-on-background bg-red-500 active-press"></button>
+<button class="w-8 h-8 rounded-full border-2 border-on-background bg-blue-500 active-press"></button>
+<button class="w-8 h-8 rounded-full border-2 border-on-background bg-green-500 active-press"></button>
+<button class="w-8 h-8 rounded-full border-2 border-on-background bg-yellow-400 active-press"></button>
+<button class="w-8 h-8 rounded-full border-2 border-on-background bg-orange-500 active-press"></button>
+<button class="w-8 h-8 rounded-full border-2 border-on-background bg-purple-500 active-press"></button>
+<button class="w-8 h-8 rounded-full border-2 border-on-background bg-pink-400 active-press"></button>
+<button class="w-8 h-8 rounded-full border-2 border-on-background bg-amber-900 active-press"></button>
+<button class="w-8 h-8 rounded-full border-2 border-on-background bg-gradient-to-tr from-red-500 via-green-500 to-blue-500 active-press flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-xs">colorize</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Right Sidebar: Active Chat -->
+</main>
+<!-- Micro-interactions Script -->
+<script>
+        // Simple logic for the palette selection visual
+        const colorButtons = document.querySelectorAll('.flex.items-center.gap-2.flex-wrap button');
+        colorButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                colorButtons.forEach(b => b.classList.remove('scale-110', 'shadow-inner'));
+                btn.classList.add('scale-110', 'shadow-inner');
+            });
+        });
+
+        // Simple tool selection logic
+        const toolButtons = document.querySelectorAll('.flex.items-center.gap-2 button');
+        toolButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                toolButtons.forEach(b => {
+                    b.classList.remove('bg-primary-container', 'hard-shadow-sm');
+                    b.classList.add('hover:bg-surface-container', 'border-transparent');
+                });
+                btn.classList.add('bg-primary-container', 'hard-shadow-sm');
+                btn.classList.remove('hover:bg-surface-container', 'border-transparent');
+            });
+        });
+
+        // Simple timer countdown simulation
+        let timeLeft = 45;
+        const timerText = document.querySelector('.relative.w-14.h-14 span');
+        const timerCircle = document.querySelector('circle.text-on-primary-container');
+        
+        setInterval(() => {
+            if (timeLeft > 0) {
+                timeLeft--;
+                timerText.innerText = timeLeft;
+                // Calculate dash offset based on time
+                const offset = 150 - (timeLeft / 45) * 150;
+                timerCircle.style.strokeDashoffset = offset;
+                
+                if (timeLeft <= 10) {
+                    timerText.parentElement.classList.replace('bg-primary-container', 'bg-error-container');
+                    timerText.classList.add('text-error');
+                }
+            }
+        }, 1000);
+    </script>
+</body></html>

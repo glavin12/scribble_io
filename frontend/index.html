@@ -2,13 +2,32 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><text y='32' font-size='32'>🎨</text></svg>" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <title>Scribble.io</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Brand & SEO -->
+    <title>DoodleDash — Draw. Guess. Laugh.</title>
+    <meta name="description" content="The free online multiplayer drawing and guessing game. Create a room, invite friends, and unleash your inner Picasso." />
+    <meta name="theme-color" content="#fff8f0" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="DoodleDash — Draw. Guess. Laugh." />
+    <meta property="og:description" content="The free online multiplayer drawing and guessing game where terrible art creates unforgettable moments." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/cat-doodle.png" />
+
+    <!-- Favicon — DoodleDash paint palette emoji -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>" />
+
+    <!-- Fonts: single load point (no CSS @import needed) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Nunito+Sans:ital,wght@0,400;0,700;0,800;1,400&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" />
   </head>
   <body>
+    <!-- Skip to content link for keyboard/screen-reader users -->
+    <a href="#root" class="skip-link">Skip to content</a>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

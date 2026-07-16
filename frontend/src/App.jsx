@@ -30,16 +30,23 @@ async function apiJson(path, body, token) {
 // function causes React to unmount+remount them on every parent re-render,
 // which resets their internal state (bug: canvas clearing, guess input blanking).
 
-function ScoresTable({ scores, me }) {
+// DoodleDash color palette for the toolbar
+const PALETTE_COLORS = [
+  '#000000', '#ffffff', '#808080', '#ef4444', '#3b82f6',
+  '#22c55e', '#facc15', '#f97316', '#a855f7', '#ec4899',
+  '#92400e',
+]
+
+function GmScoresTable({ scores, me }) {
   const sorted = Object.entries(scores || {}).sort((a, b) => b[1] - a[1])
   return (
-    <table className="final-scores">
+    <table className="gm-scores-table">
       <thead><tr><th>Player</th><th>Pts</th></tr></thead>
       <tbody>
         {sorted.map(([p, pts], i) => (
           <tr key={p}>
             <td>{i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : '🥉 '}{p}{p === me ? ' (you)' : ''}</td>
-            <td className="pts">{pts}</td>
+            <td>{pts}</td>
           </tr>
         ))}
       </tbody>
@@ -47,61 +54,234 @@ function ScoresTable({ scores, me }) {
   )
 }
 
+// Avatar colors for sidebar player cards (reused by RoomScreen as AVATAR_COLORS)
+const PLAYER_COLORS = ['#735c00', '#006491', '#006d3d', '#ba1a1a', '#9C27B0', '#FF9800', '#00897B', '#5C6BC0']
+
 function MainGameLayout({
   isDrawer, sendDraw, sendClear, guess, setGuess, submitGuess, timerLow,
   remoteStrokes, scores, username, drawerID, word, wordLength,
-  gamePhase, roundNum, totalRounds, timer, events, onSkip,
+  gamePhase, roundNum, totalRounds, timer, onSkip, onLeave,
   wrongMsg, setWrongMsg,
+  brushColor, setBrushColor, brushSize, setBrushSize, activeTool, setActiveTool,
 }) {
+  // Timer SVG circle calculations
+  const circumference = 2 * Math.PI * 24
+  const timerMax = 80 // will be adjusted by actual draw_time later
+  const timerOffset = timer != null ? circumference - (timer / timerMax) * circumference : 0
+
   return (
-    <div className="game-layout">
-      <div className="game-header">
-        <span className="round-label">Round {roundNum}/{totalRounds}</span>
-        <span className="word-display">
-          {isDrawer && word ? word.toUpperCase()
-            : gamePhase === 'drawing' ? '_ '.repeat(wordLength || 0).trim()
-            : gamePhase === 'choosing' ? `${drawerID} is choosing…`
-            : '🎨 Scribble.io'}
-        </span>
-        <span className={`timer${timerLow ? ' low' : ''}`}>{timer ?? '–'}</span>
+    <div className="gm-page">
+      {/* Atmospheric BG doodles (decorative) */}
+      <div className="gm-bg-doodles" aria-hidden="true">
+        <span className="material-symbols-outlined" style={{fontSize:120,top:20,left:10,color:'#ffd54f',animationDelay:'0s'}}>brush</span>
+        <span className="material-symbols-outlined" style={{fontSize:80,bottom:40,right:20,color:'#7bc9ff',animationDelay:'1s'}}>palette</span>
+        <span className="material-symbols-outlined" style={{fontSize:100,top:'50%',left:'25%',color:'#74f1a5',animationDelay:'2s'}}>category</span>
+        <span className="material-symbols-outlined" style={{fontSize:90,bottom:20,left:'50%',color:'#ffdad6',animationDelay:'1.5s'}}>edit</span>
       </div>
 
-      <Canvas isDrawer={isDrawer} onDraw={sendDraw} onClear={sendClear} remoteStrokes={remoteStrokes} />
-
-      <div className="side-panel">
-        <div className="scores-box">
-          <div className="box-title">Scores</div>
-          {Object.entries(scores).sort((a, b) => b[1] - a[1]).map(([p, s]) => (
-            <div key={p} className={`score-row${p === username ? ' me' : ''}`}>
-              <span className="score-name">{p} {p === drawerID ? '✏️' : ''}</span>
-              <span className="score-val">{s}</span>
+      {/* ── Top Nav Bar ── */}
+      <header className="gm-nav" role="banner" aria-label="Game navigation">
+        <div style={{display:'flex',alignItems:'center',gap:24}}>
+          <div className="gm-nav-brand">DoodleDash</div>
+          <div className="gm-nav-center">
+            <div className="gm-round-info">
+              <span className="gm-round-label-top">Current Game</span>
+              <span className="gm-round-value">Round {roundNum}/{totalRounds}</span>
             </div>
-          ))}
-        </div>
-
-        {!isDrawer && gamePhase === 'drawing' && (
-          <div className="guess-box">
-            <div className="box-title">Your guess</div>
-            {wrongMsg && (
-              <div className="wrong-msg" onClick={() => setWrongMsg('')}>{wrongMsg} ✕</div>
-            )}
-            <form className="guess-input-row" onSubmit={submitGuess}>
-              <input value={guess} onChange={e => setGuess(e.target.value)} placeholder="Type and press Enter…" autoFocus />
-              <button className="btn btn-primary btn-sm" type="submit">→</button>
-            </form>
           </div>
-        )}
-
-        {isDrawer && gamePhase === 'drawing' && (
-          <button className="btn btn-outline btn-sm" onClick={onSkip}>Skip word</button>
-        )}
-
-        <div className="events-box" style={{ flex: 1 }}>
-          <div className="box-title">Events</div>
-          <ul className="events-list">
-            {events.map(ev => <li key={ev.id} className={ev.cls}>{ev.msg}</li>)}
-          </ul>
         </div>
+
+        <div style={{display:'flex',alignItems:'center',gap:24}}>
+          {/* Circular Timer */}
+          <div className={`gm-timer-circle${timerLow ? ' low' : ''}`} role="timer" aria-label={`${timer ?? 0} seconds remaining`}>
+            <svg viewBox="0 0 56 56">
+              <circle className="track" cx="28" cy="28" r="24" />
+              <circle className="progress" cx="28" cy="28" r="24"
+                strokeDasharray={circumference}
+                strokeDashoffset={timerOffset}
+              />
+            </svg>
+            <span className="gm-timer-text">{timer ?? '–'}</span>
+          </div>
+
+          <button className="gm-btn-leave" onClick={onLeave} aria-label="Leave game">
+            <span className="material-symbols-outlined">logout</span>
+            Leave
+          </button>
+        </div>
+      </header>
+
+      {/* ── Main Body ── */}
+      <div className="gm-body">
+        {/* ── Left Sidebar: Players ── */}
+        <aside className="gm-sidebar" aria-label="Players list">
+          <div className="gm-sidebar-title">PLAYERS</div>
+          {Object.entries(scores).sort((a, b) => b[1] - a[1]).map(([p, s], i) => {
+            const isCurrentDrawer = p === drawerID
+            const isMe = p === username
+            const avatarColor = PLAYER_COLORS[i % PLAYER_COLORS.length]
+            return (
+              <div key={p} className={`gm-player-card ${isCurrentDrawer ? 'is-drawer' : 'is-guesser'}`}>
+                <div className="gm-player-avatar" style={{borderColor: avatarColor, background: avatarColor + '18'}}>
+                  <span style={{color: avatarColor}}>{p[0]?.toUpperCase()}</span>
+                  {isCurrentDrawer && (
+                    <div className="drawer-icon">
+                      <span className="material-symbols-outlined">edit</span>
+                    </div>
+                  )}
+                </div>
+                <div className="gm-player-info">
+                  <span className="gm-player-name">
+                    {isMe && isCurrentDrawer ? 'You (🎨 Drawing)'
+                      : isMe ? 'You (Guessing)'
+                      : p}
+                  </span>
+                  <span className="gm-player-pts">{s.toLocaleString()} pts</span>
+                </div>
+              </div>
+            )
+          })}
+
+          <div className="gm-sidebar-bottom">
+            <button className="gm-btn-invite" aria-label="Invite friends to this game">
+              <span className="material-symbols-outlined" aria-hidden="true">person_add</span>
+              Invite Friends
+            </button>
+          </div>
+        </aside>
+
+        {/* ── Center: Canvas Area ── */}
+        <section className="gm-center" role="main" aria-label="Drawing canvas and controls">
+          {/* Header — varies by role */}
+          {isDrawer && word ? (
+            <div className="gm-secret-header">
+              <div className="gm-secret-left">
+                <div className="gm-secret-word-row">
+                  <span className="gm-secret-label">Secret Word:</span>
+                  <span className="gm-secret-word-badge">{word}</span>
+                </div>
+                <p className="gm-secret-hint">Draw the word without using letters, numbers, or symbols.</p>
+              </div>
+              <div className="gm-canvas-actions">
+                <button className="gm-canvas-action-btn danger" onClick={sendClear} title="Clear canvas" aria-label="Clear canvas">
+                  <span className="material-symbols-outlined">delete</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="gm-guesser-header">
+              {gamePhase === 'drawing' ? (
+                <>
+                  <div className="gm-word-blanks" role="status" aria-live="polite" aria-label={`Word has ${wordLength || 0} letters`}>{'_ '.repeat(wordLength || 0).trim()}</div>
+                  <div className="gm-hint-badge">
+                    <span className="material-symbols-outlined">stars</span>
+                    <span>GUESS QUICKLY FOR BONUS!</span>
+                  </div>
+                </>
+              ) : gamePhase === 'choosing' ? (
+                <div className="gm-choosing-msg">{drawerID} is choosing a word…</div>
+              ) : (
+                <div className="gm-choosing-msg">🎨 DoodleDash</div>
+              )}
+            </div>
+          )}
+
+          {/* Canvas */}
+          <div className="gm-canvas-wrap" role="img" aria-label={isDrawer ? 'Drawing canvas - draw your word here' : 'Drawing canvas - watch the drawer'}>
+            <div className="gm-canvas-ghost">
+              <span className="material-symbols-outlined">gesture</span>
+            </div>
+            <Canvas
+              isDrawer={isDrawer}
+              onDraw={sendDraw}
+              remoteStrokes={remoteStrokes}
+              color={brushColor}
+              size={brushSize}
+              tool={activeTool}
+            />
+          </div>
+
+          {/* Drawer: Toolbar */}
+          {isDrawer && gamePhase === 'drawing' && (
+            <div className="gm-toolbar" role="toolbar" aria-label="Drawing tools">
+              {/* Tool buttons */}
+              <div className="gm-tools-group">
+                <button className={`gm-tool-btn${activeTool === 'pencil' ? ' active' : ''}`}
+                  onClick={() => setActiveTool('pencil')} title="Pencil">
+                  <span className="material-symbols-outlined">edit</span>
+                </button>
+                <button className={`gm-tool-btn${activeTool === 'brush' ? ' active' : ''}`}
+                  onClick={() => setActiveTool('brush')} title="Brush">
+                  <span className="material-symbols-outlined">brush</span>
+                </button>
+                <button className={`gm-tool-btn${activeTool === 'eraser' ? ' active' : ''}`}
+                  onClick={() => setActiveTool('eraser')} title="Eraser">
+                  <span className="material-symbols-outlined">ink_eraser</span>
+                </button>
+              </div>
+
+              <div className="gm-toolbar-sep" />
+
+              {/* Size slider */}
+              <div className="gm-size-group">
+                <span className="material-symbols-outlined" style={{fontSize:12}}>circle</span>
+                <input
+                  className="gm-size-slider"
+                  type="range" min={1} max={50} value={brushSize}
+                  onChange={e => setBrushSize(+e.target.value)}
+                  aria-label={`Brush size: ${brushSize}`}
+                />
+                <span className="material-symbols-outlined" style={{fontSize:22}}>circle</span>
+              </div>
+
+              <div className="gm-toolbar-sep" />
+
+              {/* Color palette */}
+              <div className="gm-colors-group">
+                {PALETTE_COLORS.map(c => (
+                  <button
+                    key={c}
+                    className={`gm-color-swatch${brushColor === c ? ' active' : ''}`}
+                    style={{background: c}}
+                    onClick={() => { setBrushColor(c); if (activeTool === 'eraser') setActiveTool('pencil') }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Drawer: Skip button */}
+          {isDrawer && gamePhase === 'drawing' && (
+            <button className="gm-btn-skip" onClick={onSkip}>Skip word</button>
+          )}
+
+          {/* Guesser: Guess input */}
+          {(!isDrawer) && gamePhase === 'drawing' && (
+            <div className="gm-guess-area">
+              {wrongMsg && (
+                <div className="gm-wrong-msg" role="alert" aria-live="assertive" onClick={() => setWrongMsg('')}>
+                  {wrongMsg}
+                  <span className="material-symbols-outlined" style={{fontSize:16}}>close</span>
+                </div>
+              )}
+              <form className="gm-guess-row" onSubmit={submitGuess} role="search" aria-label="Guess the word">
+                <input
+                  className="gm-guess-input"
+                  value={guess}
+                  onChange={e => setGuess(e.target.value)}
+                  placeholder="Type your guess..."
+                  aria-label="Type your guess"
+                  autoFocus
+                />
+                <button className="gm-btn-send" type="submit">
+                  SEND
+                  <span className="material-symbols-outlined">send</span>
+                </button>
+              </form>
+              <p className="gm-guess-tip">Tip: Spelling counts! Keep guessing until you get it right.</p>
+            </div>
+          )}
+        </section>
       </div>
     </div>
   )
@@ -145,9 +325,9 @@ function AuthScreen({ error, setError, setToken, setUsername, setScreen, setIsGu
   }
 
   return (
-    <div className="auth-split">
+    <div className="auth-split" role="main">
       {/* ── Left: Login Form ── */}
-      <section className="auth-left">
+      <section className="auth-left" aria-labelledby="auth-heading">
         {/* Brand */}
         <div className="auth-brand">
           <span className="material-symbols-outlined auth-brand-icon">brush</span>
@@ -156,7 +336,7 @@ function AuthScreen({ error, setError, setToken, setUsername, setScreen, setIsGu
 
         <div className="auth-form-wrap">
           <header className="auth-header">
-            <h2 className="auth-title">{mode === 'login' ? 'Welcome Back!' : 'Create Account'}</h2>
+            <h2 id="auth-heading" className="auth-title">{mode === 'login' ? 'Welcome Back!' : 'Create Account'}</h2>
             <p className="auth-subtitle">
               {mode === 'login'
                 ? "Ready to watch your friends draw a \"cat\" that looks suspiciously like a potato?"
@@ -164,29 +344,29 @@ function AuthScreen({ error, setError, setToken, setUsername, setScreen, setIsGu
             </p>
           </header>
 
-          {error && <div className="auth-error">{error}</div>}
+          {error && <div className="auth-error" role="alert" aria-live="assertive">{error}</div>}
 
           {/* Divider */}
           <div className="auth-divider-dd"><span>or email</span></div>
 
           {/* Email/Password Form */}
-          <form className="auth-form" onSubmit={submit}>
+          <form className="auth-form" onSubmit={submit} aria-label={mode === 'login' ? 'Login form' : 'Registration form'}>
             <div className="auth-field">
-              <label>Username</label>
-              <input value={form.username} onChange={e => setForm(f => ({...f, username: e.target.value}))} placeholder="sketchy_artist" required />
+              <label htmlFor="auth-username">Username</label>
+              <input id="auth-username" value={form.username} onChange={e => setForm(f => ({...f, username: e.target.value}))} placeholder="sketchy_artist" required />
             </div>
             {mode === 'register' && (
               <div className="auth-field">
-                <label>Email Address</label>
-                <input type="email" value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} placeholder="sketchy@artist.com" required />
+                <label htmlFor="auth-email">Email Address</label>
+                <input id="auth-email" type="email" value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} placeholder="sketchy@artist.com" required />
               </div>
             )}
             <div className="auth-field">
               <div className="auth-field-row">
-                <label>Password</label>
+                <label htmlFor="auth-password">Password</label>
                 {mode === 'login' && <a className="auth-forgot" href="#">Forgot?</a>}
               </div>
-              <input type="password" value={form.password} onChange={e => setForm(f => ({...f, password: e.target.value}))} placeholder="••••••••" required />
+              <input id="auth-password" type="password" value={form.password} onChange={e => setForm(f => ({...f, password: e.target.value}))} placeholder="••••••••" required />
             </div>
             <button className="auth-btn-submit" type="submit" disabled={busy}>
               {busy ? '…' : mode === 'login' ? 'Login' : 'Register'}
@@ -203,7 +383,7 @@ function AuthScreen({ error, setError, setToken, setUsername, setScreen, setIsGu
 
           {/* Guest Option */}
           <div className="auth-guest-section">
-            <form className="auth-guest-form" onSubmit={playAsGuest}>
+            <form className="auth-guest-form" onSubmit={playAsGuest} aria-label="Play as guest">
               <input value={guestNick} onChange={e => setGuestNick(e.target.value)} placeholder="Pick a nickname…" maxLength={20} className="auth-guest-input" required />
               <button className="auth-btn-guest" type="submit">
                 <span className="material-symbols-outlined" style={{fontSize:18}}>person_search</span>
@@ -215,7 +395,7 @@ function AuthScreen({ error, setError, setToken, setUsername, setScreen, setIsGu
       </section>
 
       {/* ── Right: Illustration ── */}
-      <section className="auth-right">
+      <section className="auth-right" aria-hidden="true">
         {/* Floating background icons */}
         <div className="auth-bg-icon auth-bg-icon-1"><span className="material-symbols-outlined">draw</span></div>
         <div className="auth-bg-icon auth-bg-icon-2"><span className="material-symbols-outlined">palette</span></div>
@@ -281,7 +461,7 @@ function LobbyScreen({ error, setError, username, isGuest, send, setToken, setUs
   return (
     <div className="lobby-dd">
       {/* BG doodle icons */}
-      <div className="lobby-bg-icons">
+      <div className="lobby-bg-icons" aria-hidden="true">
         <span className="material-symbols-outlined" style={{top:80,left:40,fontSize:60,transform:'rotate(12deg)'}}>brush</span>
         <span className="material-symbols-outlined" style={{top:'50%',left:80,fontSize:40,transform:'rotate(-45deg)'}}>star</span>
         <span className="material-symbols-outlined" style={{bottom:80,right:40,fontSize:70,transform:'rotate(-12deg)'}}>palette</span>
@@ -290,7 +470,7 @@ function LobbyScreen({ error, setError, username, isGuest, send, setToken, setUs
 
       {/* Navbar */}
       <header className="lobby-nav">
-        <nav className="lobby-nav-inner">
+        <nav className="lobby-nav-inner" aria-label="Lobby navigation">
           <div className="lobby-logo">
             <span className="material-symbols-outlined" style={{fontSize:28,color:'var(--dd-primary)'}}>edit</span>
             <span>DoodleDash</span>
@@ -423,7 +603,7 @@ function LobbyScreen({ error, setError, username, isGuest, send, setToken, setUs
         <div className="lobby-footer-inner">
           <div>
             <div className="lobby-footer-brand">DoodleDash</div>
-            <div className="lobby-footer-copy">© 2024 DoodleDash — Draw. Laugh. Repeat.</div>
+            <div className="lobby-footer-copy">© 2025 DoodleDash — Draw. Laugh. Repeat.</div>
           </div>
           <div className="lobby-footer-links">
             <a href="#">Privacy</a>
@@ -450,7 +630,7 @@ const CHAIR_POSITIONS = [
   { left: '82%', bottom: '42%' },  // right-back
 ]
 
-const AVATAR_COLORS = ['#735c00', '#006491', '#006d3d', '#ba1a1a', '#9C27B0', '#FF9800', '#00897B', '#5C6BC0']
+const AVATAR_COLORS = PLAYER_COLORS
 
 function RoomScreen({ room, error, isCreator, send, setRoom, setScreen, username }) {
   const ready = room?.status === 'ready'
@@ -478,14 +658,14 @@ function RoomScreen({ room, error, isCreator, send, setRoom, setScreen, username
   return (
     <div className="wr-page">
       {/* BG decorations */}
-      <div className="wr-bg-decor">
+      <div className="wr-bg-decor" aria-hidden="true">
         <span className="material-symbols-outlined" style={{top:'10%',left:'5%',fontSize:48,color:'var(--dd-primary)',animationDelay:'0s'}}>star</span>
         <span className="material-symbols-outlined" style={{bottom:'20%',right:'8%',fontSize:64,color:'var(--dd-secondary)',animationDelay:'2s'}}>brush</span>
         <span className="material-symbols-outlined" style={{top:'50%',left:'20%',fontSize:36,color:'var(--dd-tertiary)',animationDelay:'1s'}}>palette</span>
       </div>
 
       {/* Nav */}
-      <nav className="wr-nav">
+      <nav className="wr-nav" aria-label="Waiting room navigation">
         <div className="wr-nav-inner">
           <div className="wr-nav-brand">
             <span className="material-symbols-outlined" style={{fontSize:28,color:'var(--dd-primary)'}}>draw</span>
@@ -706,8 +886,12 @@ function GameScreen({
   gamePhase, roundNum, totalRounds, timer, events,
   candidates, setCandidates, hostId, wrongMsg, setWrongMsg,
 }) {
-  // guess is lifted to App() — defined alongside other game state above.
   const isDrawer = drawerID === username
+
+  // Drawing tool state — lives here so it persists across re-renders
+  const [brushColor, setBrushColor] = useState('#000000')
+  const [brushSize, setBrushSize]   = useState(6)
+  const [activeTool, setActiveTool] = useState('pencil')
 
   // Stable callbacks — send is already stable (useCallback([]))
   const sendDraw  = useCallback((stroke) => send('draw', { stroke }), [send])
@@ -722,57 +906,60 @@ function GameScreen({
 
   const timerLow = timer !== null && timer <= 15
 
-  const layout = (
-    <MainGameLayout
-      isDrawer={isDrawer} sendDraw={sendDraw} sendClear={sendClear}
-      guess={guess} setGuess={setGuess} submitGuess={submitGuess}
-      timerLow={timerLow}
-      remoteStrokes={remoteStrokes} scores={scores} username={username}
-      drawerID={drawerID} word={word} wordLength={wordLength}
-      gamePhase={gamePhase} roundNum={roundNum} totalRounds={totalRounds}
-      timer={timer} events={events}
-      onSkip={() => send('skip')}
-      onChooseWord={(w) => { send('choose_word', { word: w }); setCandidates([]) }}
-      wrongMsg={wrongMsg} setWrongMsg={setWrongMsg}
-    />
-  )
-
   return (
     <>
-      {layout}
+      <MainGameLayout
+        isDrawer={isDrawer} sendDraw={sendDraw} sendClear={sendClear}
+        guess={guess} setGuess={setGuess} submitGuess={submitGuess}
+        timerLow={timerLow}
+        remoteStrokes={remoteStrokes} scores={scores} username={username}
+        drawerID={drawerID} word={word} wordLength={wordLength}
+        gamePhase={gamePhase} roundNum={roundNum} totalRounds={totalRounds}
+        timer={timer}
+        onSkip={() => send('skip')}
+        onLeave={() => { send('leave_room'); window.location.reload() }}
+        wrongMsg={wrongMsg} setWrongMsg={setWrongMsg}
+        brushColor={brushColor} setBrushColor={setBrushColor}
+        brushSize={brushSize} setBrushSize={setBrushSize}
+        activeTool={activeTool} setActiveTool={setActiveTool}
+      />
+
+      {/* Word choice overlay */}
       {gamePhase === 'choosing' && isDrawer && candidates.length > 0 && (
-        <div className="overlay">
-          <div className="choice-card fade">
-            <h2>Choose a word</h2>
+        <div className="gm-overlay">
+          <div className="gm-modal">
+            <h2>Choose a Word</h2>
             <p className="sub">Pick one to draw. You have {timer}s.</p>
-            <div className="word-choices">
+            <div className="gm-word-choices">
               {candidates.map(w => (
-                <button key={w} className="word-choice-btn"
+                <button key={w} className="gm-word-choice-btn"
                   onClick={() => { send('choose_word', { word: w }); setCandidates([]) }}>
                   {w}
                 </button>
               ))}
             </div>
-            <div className="choice-timer">{timer}</div>
+            <div className="gm-choice-timer">{timer}</div>
           </div>
         </div>
       )}
+
+      {/* Round end overlay */}
       {gamePhase === 'round_end' && (
-        <div className="overlay">
-          <div className="choice-card fade">
-            <h2>Round {roundNum} over!</h2>
-            <p className="sub">The word was: <strong style={{color:'var(--accent)'}}>{word}</strong></p>
-            <ScoresTable scores={scores} me={username} />
+        <div className="gm-overlay">
+          <div className="gm-modal">
+            <h2>Round {roundNum} Over!</h2>
+            <p className="sub">The word was:</p>
+            <div className="gm-round-word">{word}</div>
+            <GmScoresTable scores={scores} me={username} />
             {username === hostId ? (
-              <button
-                className="btn btn-success"
-                style={{marginTop:'1rem'}}
-                onClick={() => send('next_round')}
-              >
+              <button className="gm-btn-next" onClick={() => send('next_round')}>
                 Start Next Round ▶
               </button>
             ) : (
-              <p style={{color:'var(--muted)', marginTop:'1rem', fontSize:'.9rem'}}>Waiting for host to start next round…</p>
+              <div className="gm-waiting-host">
+                <span className="material-symbols-outlined" style={{animation:'room-pulse 1.5s infinite'}}>hourglass_top</span>
+                Waiting for host to start next round…
+              </div>
             )}
           </div>
         </div>
@@ -786,14 +973,35 @@ function GameScreen({
 function GameOverScreen({ finalResult, error, username, setFinalResult, setScreen, setRoom }) {
   const { scores: s, winner } = finalResult || {}
   return (
-    <div className="center fade">
-      <div className="card result-card">
-        <h1>🏆 Game Over</h1>
-        <div className="winner">{winner ? `${winner} wins!` : 'Draw!'}</div>
-        {error && <div className="error-box">{error}</div>}
-        <ScoresTable scores={s || {}} me={username} />
-        <button className="btn btn-primary" style={{marginTop:'1rem'}} onClick={() => { setFinalResult(null); setScreen('lobby'); setRoom(null) }}>
-          Play Again
+    <div className="gm-page" style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh'}}>
+      {/* BG doodles */}
+      <div className="gm-bg-doodles" aria-hidden="true">
+        <span className="material-symbols-outlined" style={{fontSize:120,top:20,left:10,color:'#ffd54f',animationDelay:'0s'}}>brush</span>
+        <span className="material-symbols-outlined" style={{fontSize:80,bottom:40,right:20,color:'#7bc9ff',animationDelay:'1s'}}>palette</span>
+        <span className="material-symbols-outlined" style={{fontSize:100,top:'50%',left:'25%',color:'#74f1a5',animationDelay:'2s'}}>emoji_events</span>
+      </div>
+
+      <div className="gm-modal" style={{maxWidth:520,position:'relative',zIndex:10}}>
+        <div style={{fontSize:64,marginBottom:8}}>🏆</div>
+        <h2>Game Over!</h2>
+        <div style={{
+          fontFamily:'Quicksand, sans-serif',
+          fontSize:28, fontWeight:700,
+          color: '#006d3d',
+          margin:'8px 0 16px',
+        }}>
+          {winner ? `${winner} wins!` : "It's a Draw!"}
+        </div>
+        {error && (
+          <div className="gm-wrong-msg" style={{justifyContent:'center',marginBottom:16}}>{error}</div>
+        )}
+        <GmScoresTable scores={s || {}} me={username} />
+        <button
+          className="gm-btn-next"
+          style={{marginTop:16,width:'100%'}}
+          onClick={() => { setFinalResult(null); setScreen('lobby'); setRoom(null) }}
+        >
+          🎨 Play Again
         </button>
       </div>
     </div>

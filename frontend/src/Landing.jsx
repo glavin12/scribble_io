@@ -3,9 +3,9 @@ import './Landing.css'
 
 export default function LandingPage({ onPlayGuest, onLogin }) {
   return (
-    <div className="landing">
-      {/* Background doodle pattern + floating icons */}
-      <div className="lp-bg-icons">
+    <div className="landing" role="document">
+      {/* Background doodle pattern + floating icons (decorative) */}
+      <div className="lp-bg-icons" aria-hidden="true">
         <div className="doodle-bg" style={{ position: 'absolute', inset: 0, opacity: .05 }} />
         <span className="material-symbols-outlined" style={{ top: 80, left: '10%', fontSize: 60, transform: 'rotate(12deg)' }}>draw</span>
         <span className="material-symbols-outlined" style={{ top: '40%', right: '5%', fontSize: 80, transform: 'rotate(-12deg)' }}>auto_awesome</span>
@@ -15,7 +15,7 @@ export default function LandingPage({ onPlayGuest, onLogin }) {
 
       {/* ── Navbar ── */}
       <header className="lp-nav">
-        <nav className="lp-nav-inner">
+        <nav className="lp-nav-inner" aria-label="Main navigation">
           <div className="lp-logo">
             <span className="material-symbols-outlined icon-filled" style={{ fontSize: 36 }}>edit</span>
             <span>DoodleDash</span>
@@ -26,8 +26,8 @@ export default function LandingPage({ onPlayGuest, onLogin }) {
             <a href="#modes">Community</a>
           </div>
           <div className="lp-nav-right">
-            <span className="material-symbols-outlined lp-nav-icon">code</span>
-            <span className="material-symbols-outlined lp-nav-icon">dark_mode</span>
+            <span className="material-symbols-outlined lp-nav-icon" aria-hidden="true">code</span>
+            <span className="material-symbols-outlined lp-nav-icon" aria-hidden="true">dark_mode</span>
             <button className="lp-btn-nav interactive-press hard-drop-primary" onClick={onLogin}>
               Login
             </button>
@@ -35,13 +35,13 @@ export default function LandingPage({ onPlayGuest, onLogin }) {
         </nav>
       </header>
 
-      <main style={{ position: 'relative', zIndex: 10, maxWidth: 'var(--container-max)', margin: '0 auto', padding: '0 var(--margin-mobile)' }}>
+      <main id="main-content" style={{ position: 'relative', zIndex: 10, maxWidth: 'var(--container-max)', margin: '0 auto', padding: '0 var(--margin-mobile)' }}>
 
         {/* ── Hero ── */}
-        <section className="lp-hero lp-fade">
+        <section className="lp-hero lp-fade" aria-labelledby="hero-heading">
           <div className="lp-hero-text">
             <span className="lp-badge">FREE TO PLAY 🎨</span>
-            <h1 className="font-display">
+            <h1 id="hero-heading" className="font-display">
               Draw. Guess. <br /><span className="highlight">Laugh.</span>
             </h1>
             <p className="font-body-lg lp-hero-sub">
@@ -73,17 +73,17 @@ export default function LandingPage({ onPlayGuest, onLogin }) {
                 </div>
               </div>
               <div className="lp-preview-board sketch-border">
-                <img src="/cat-doodle.png" alt="A charmingly bad doodle of a cat" />
+                <img src="/cat-doodle.png" alt="A charmingly bad doodle of a cat drawn during a game" />
                 <div className="lp-chat-bubble lp-chat-r hard-drop-secondary">Is that a potato? 🥔</div>
                 <div className="lp-chat-bubble lp-chat-l hard-drop-tertiary">No... it's a cat 😂</div>
               </div>
               <div className="lp-preview-players">
                 <div className="lp-avatar-stack">
                   <div className="lp-avatar" style={{ background: 'var(--primary-container)' }}>
-                    <img src="/avatar1.png" alt="Player avatar" />
+                    <img src="/avatar1.png" alt="" />
                   </div>
                   <div className="lp-avatar" style={{ background: 'var(--secondary-container)' }}>
-                    <img src="/avatar2.png" alt="Player avatar" />
+                    <img src="/avatar2.png" alt="" />
                   </div>
                   <div className="lp-avatar-more">+3</div>
                 </div>
@@ -94,9 +94,9 @@ export default function LandingPage({ onPlayGuest, onLogin }) {
         </section>
 
         {/* ── Features ── */}
-        <section id="features" className="lp-features lp-fade lp-fade-d1">
+        <section id="features" className="lp-features lp-fade lp-fade-d1" aria-labelledby="features-heading">
           <div className="lp-features-title">
-            <h2 className="font-display">Why DoodleDash?</h2>
+            <h2 id="features-heading" className="font-display">Why DoodleDash?</h2>
             <div className="lp-features-bar" />
           </div>
           <div className="lp-features-grid">
@@ -125,8 +125,8 @@ export default function LandingPage({ onPlayGuest, onLogin }) {
         </section>
 
         {/* ── How It Works ── */}
-        <section id="how" className="lp-steps lp-fade lp-fade-d2">
-          <h2 className="font-display">Quick Start Guide</h2>
+        <section id="how" className="lp-steps lp-fade lp-fade-d2" aria-labelledby="how-heading">
+          <h2 id="how-heading" className="font-display">Quick Start Guide</h2>
           <div className="lp-steps-row">
             <div className="lp-steps-line" />
             {[
@@ -222,7 +222,7 @@ export default function LandingPage({ onPlayGuest, onLogin }) {
             <a href="#">Support</a>
             <a href="#">Twitter</a>
           </div>
-          <p className="lp-footer-copy">© 2024 DoodleDash. Let's get sketching!</p>
+          <p className="lp-footer-copy">© 2025 DoodleDash. Let's get sketching!</p>
         </div>
       </footer>
     </div>
